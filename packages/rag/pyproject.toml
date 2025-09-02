@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "personal-ai-rag"
+dynamic = ["version"]
+description = "RAG (Retrieval Augmented Generation) for Personal AI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+  "personal-ai-core",
+]
+
+[tool.hatch.version]
+path = "personal_ai_rag/__init__.py"

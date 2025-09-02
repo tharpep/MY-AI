@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "personal-ai-agents"
+dynamic = ["version"]
+description = "AI agents, routing, and tool orchestration for Personal AI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+  "personal-ai-core",
+  "personal-ai-llms",
+]
+
+[tool.hatch.version]
+path = "personal_ai_agents/__init__.py"

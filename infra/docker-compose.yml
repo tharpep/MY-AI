@@ -1,0 +1,32 @@
+# Docker Compose for local development
+version: '3.8'
+
+services:
+  # Uncomment and configure as needed during development
+  
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  
+  # postgres:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: personal_ai
+  #     POSTGRES_USER: dev
+  #     POSTGRES_PASSWORD: dev
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  
+# volumes:
+#   ollama_data:
+#   postgres_data:

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "personal-ai-llms"
+dynamic = ["version"]
+description = "LLM Gateway and model adapters for Personal AI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+  "personal-ai-core",
+]
+
+[tool.hatch.version]
+path = "personal_ai_llms/__init__.py"
