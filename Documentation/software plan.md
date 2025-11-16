@@ -84,11 +84,11 @@ This is the **planning artifact** for the Personal AI project. It defines the co
 
 ## 4. Local CLI Interaction (No API Required)
 
-**Run Script - Direct Local Interaction:**
-- **`python run demo`** - Interactive CLI without starting API server
-- **RAG Demo (Interactive)** - Ask questions directly using your documents
-- **Tuning Demo** - Manage and test fine-tuned models
-- **API Demo** - Start the FastAPI server for web/frontend access
+**CLI - Direct Local Interaction:**
+- **`poetry run my-ai demo rag`** - Run RAG demo with automated queries
+- **`poetry run my-ai demo llm`** - Run LLM demo with automated questions
+- **`poetry run my-ai demo tuning`** - Manage and test fine-tuned models
+- **`poetry run my-ai demo api`** - Start the FastAPI server for web/frontend access
 
 **Benefits of CLI Mode:**
 - **No server overhead** - Direct Python execution
@@ -110,7 +110,7 @@ This is the **planning artifact** for the Personal AI project. It defines the co
 - **Hardware-aware** - Automatically uses appropriate models (laptop vs dedicated GPU)
 - **Fast iteration** - Quick testing and development
 - **Privacy** - Everything stays on your machine
-- **CLI access** - Direct interaction via `python run demo`
+- **CLI access** - Direct interaction via `poetry run my-ai demo`
 
 **Your Own Cloud Production:**
 - **Deploy anywhere** - AWS, GCP, Azure, DigitalOcean, VPS, etc.

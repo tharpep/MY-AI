@@ -172,14 +172,20 @@ See `/Documentation/` for detailed specifications and development roadmap.
 Try the system locally without setting up the full API:
 
 ```bash
-# Interactive RAG demo
-python run demo
+# RAG demo (automated)
+poetry run my-ai demo rag
 
-# Direct LLM chat
-python run demo  # Choose option 2
+# LLM demo (automated)
+poetry run my-ai demo llm
 
-# Run tests
-python run test all
+# Run all tests
+poetry run my-ai test --all
+
+# Run specific test category
+poetry run my-ai test tests_api
+
+# Show configuration
+poetry run my-ai config
 ```
 
 ## Contributing
