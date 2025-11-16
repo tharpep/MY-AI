@@ -6,7 +6,7 @@ Basic testing for model fine-tuning functionality
 import os
 import time
 from .basic_tuning import BasicTuner
-from core.utils.config import get_tuning_config
+from core.config import get_config
 from core.utils.logging_config import log_tuning_result
 
 
@@ -15,17 +15,17 @@ def run_tuning_demo(mode="quick"):
     print("=== Tuning Demo ===")
     
     # Get configuration
-    config = get_tuning_config()
+    config = get_config()
     print(f"Using model: {config.model_name}")
-    print(f"Device: {config.device}")
-    print(f"Epochs: {config.num_epochs}")
+    print(f"Device: {config.tuning_device}")
+    print(f"Epochs: {config.tuning_num_epochs}")
     
     try:
         # Initialize tuner
         print("\nInitializing tuner...")
         tuner = BasicTuner(
             model_name=config.model_name,
-            device=config.device,
+            device=config.tuning_device,
             config=config
         )
         tuner.load_model()
@@ -60,20 +60,20 @@ def run_tuning_demo(mode="quick"):
                 "Feature engineering involves selecting and transforming input variables to improve model accuracy.",
                 "Model evaluation metrics help assess the performance and reliability of machine learning models."
             ]
-            epochs = config.num_epochs
+            epochs = config.tuning_num_epochs
         
         print(f"Training with {len(training_texts)} examples for {epochs} epochs...")
         
         # Prepare data
-        train_dataset = tuner.prepare_data(training_texts, max_length=config.max_length)
+        train_dataset = tuner.prepare_data(training_texts, max_length=config.tuning_max_length)
         
         # Setup trainer with hardware-optimized settings
         tuner.setup_trainer(
             train_dataset=train_dataset,
             output_dir=config.output_dir,
-            num_epochs=config.optimized_num_epochs if mode == "full" else 1,
-            batch_size=config.optimized_batch_size,
-            learning_rate=config.learning_rate
+            num_epochs=config.tuning_num_epochs if mode == "full" else 1,
+            batch_size=config.tuning_batch_size,
+            learning_rate=config.tuning_learning_rate
         )
         
         # Train with versioning
@@ -102,10 +102,10 @@ def run_tuning_demo(mode="quick"):
                 training_time=new_version.training_time_seconds,
                 final_loss=new_version.final_loss,
                 model_size_mb=new_version.model_size_mb,
-                epochs=config.optimized_num_epochs if mode == "full" else 1,
-                batch_size=config.optimized_batch_size,
-                learning_rate=config.learning_rate,
-                device=config.device,
+                epochs=config.tuning_num_epochs if mode == "full" else 1,
+                batch_size=config.tuning_batch_size,
+                learning_rate=config.tuning_learning_rate,
+                device=config.tuning_device,
                 notes=notes
             )
         

@@ -14,7 +14,7 @@ sys.path.append(str(project_root))
 
 from rag.rag_setup import BasicRAG
 from rag.document_ingester import DocumentIngester
-from core.utils.config import RAGConfig
+from core.config import get_config
 
 
 class TestRAGSystem:
@@ -23,12 +23,7 @@ class TestRAGSystem:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         """Setup for each test method"""
-        self.config = RAGConfig(
-            use_ollama=True,
-            use_persistent=True,  # Use persistent storage for checkpoint
-            use_laptop=True  # Use laptop model (qwen3:1.7b)
-        )
-        
+        self.config = get_config()
         self.documents_folder = str(project_root / "data" / "documents")
     
     def test_rag_initialization(self):

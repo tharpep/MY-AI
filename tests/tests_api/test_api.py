@@ -7,7 +7,7 @@ import asyncio
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 from app.main import app
-from core.utils.config import get_rag_config
+from core.config import get_config
 
 # Fixture for the event loop, required by pytest-asyncio
 @pytest.fixture(scope="module")
@@ -62,7 +62,7 @@ class TestLLMEndpoints:
     
     def test_chat_completions(self, client: TestClient):
         """Test chat completions endpoint"""
-        config = get_rag_config()
+        config = get_config()
         model_name = config.model_name
         
         response = client.post(
@@ -253,7 +253,7 @@ class TestIntegration:
         chat_response = client.post(
             "/v1/chat/completions",
             json={
-                "model": get_rag_config().model_name,
+                "model": get_config().model_name,
                 "messages": [{"role": "user", "content": "Hello"}]
             }
         )

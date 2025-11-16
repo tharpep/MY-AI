@@ -7,7 +7,7 @@ import os
 import time
 from pathlib import Path
 from .gateway import AIGateway
-from core.utils.config import get_rag_config
+from core.config import get_config
 
 
 def run_llm_demo(mode="automated"):
@@ -15,7 +15,7 @@ def run_llm_demo(mode="automated"):
     print("=== Direct LLM Demo ===")
     
     # Get configuration
-    config = get_rag_config()
+    config = get_config()
     print(f"Using model: {config.model_name}")
     print(f"Provider: {'Ollama' if config.use_ollama else 'Purdue API'}")
     

@@ -235,7 +235,7 @@ Tests are designed to run in CI environments:
 1. **Import errors**: Check that all imports use correct paths (`llm.` not `ai_providers.`)
 2. **Mock failures**: Ensure mocks match actual method signatures
 3. **Async test issues**: Use `@pytest.mark.asyncio` for async tests
-4. **Configuration errors**: Check that config imports use `core.utils.config`
+4. **Configuration errors**: Check that config imports use `core.config`
 
 ### Debug Mode
 

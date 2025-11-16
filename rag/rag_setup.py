@@ -6,7 +6,7 @@ Coordinates vector storage, retrieval, and generation components
 from llm.gateway import AIGateway
 from .vector_store import VectorStore
 from .retriever import DocumentRetriever
-from core.utils.config import get_rag_config
+from core.config import get_config
 
 
 class BasicRAG:
@@ -20,12 +20,12 @@ class BasicRAG:
             collection_name: Name for Qdrant collection (uses config default if None)
             use_persistent: If True, use persistent Qdrant storage (uses config default if None)
         """
-        self.config = get_rag_config()
-        self.collection_name = collection_name or self.config.collection_name
+        self.config = get_config()
+        self.collection_name = collection_name or self.config.rag_collection_name
         
         # Initialize components
         self.gateway = AIGateway()
-        self.vector_store = VectorStore(use_persistent=use_persistent if use_persistent is not None else self.config.use_persistent)
+        self.vector_store = VectorStore(use_persistent=use_persistent if use_persistent is not None else self.config.rag_use_persistent)
         self.retriever = DocumentRetriever()
         
         # Setup collection
@@ -70,7 +70,7 @@ class BasicRAG:
         """
         # Use config default if limit not specified
         if limit is None:
-            limit = self.config.top_k
+            limit = self.config.rag_top_k
             
         # Create query embedding
         query_embedding = self.retriever.encode_query(query)

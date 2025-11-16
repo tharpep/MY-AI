@@ -207,9 +207,9 @@ class BasicTuner:
             new_version = self.registry.create_new_version(
                 model_name=self.model_name,
                 base_model=self.model_name,  # For now, same as model_name
-                training_epochs=self.config.optimized_num_epochs,
-                batch_size=self.config.optimized_batch_size,
-                learning_rate=self.config.learning_rate,
+                training_epochs=self.config.tuning_num_epochs,
+                batch_size=self.config.tuning_batch_size,
+                learning_rate=self.config.tuning_learning_rate,
                 device=self.device,
                 notes=notes
             )

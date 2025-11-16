@@ -9,7 +9,7 @@ import asyncio
 from typing import Dict, Any, Optional, List
 from .purdue_api import PurdueGenAI
 from .local import OllamaClient, OllamaConfig
-from core.utils.config import get_rag_config
+from core.config import get_config
 
 # Load environment variables from .env file
 def load_env_file():
@@ -38,7 +38,7 @@ class AIGateway:
                    If None, will try to load from environment variables and config.py
         """
         self.providers = {}
-        self.rag_config = get_rag_config()
+        self.config = get_config()
         self._setup_providers(config or {})
     
     def _setup_providers(self, config: Dict[str, Any]):
@@ -47,19 +47,22 @@ class AIGateway:
         if "purdue" in config:
             api_key = config["purdue"].get("api_key")
             self.providers["purdue"] = PurdueGenAI(api_key)
+        elif self.config.purdue_api_key:
+            self.providers["purdue"] = PurdueGenAI()
         elif os.getenv('PURDUE_API_KEY'):
             self.providers["purdue"] = PurdueGenAI()
         
         # Setup Local Ollama provider
         if "ollama" in config:
             ollama_config = OllamaConfig(
-                base_url=config["ollama"].get("base_url", "http://localhost:11434"),
-                default_model=config["ollama"].get("default_model", self.rag_config.model_name)
+                base_url=config["ollama"].get("base_url", self.config.ollama_base_url),
+                default_model=config["ollama"].get("default_model", self.config.model_name)
             )
             self.providers["ollama"] = OllamaClient(ollama_config)
-        elif self.rag_config.use_ollama or os.getenv('USE_OLLAMA', 'false').lower() == 'true':
+        elif self.config.provider_type == "local" and self.config.provider_name == "ollama":
             ollama_config = OllamaConfig(
-                default_model=self.rag_config.model_name
+                base_url=self.config.ollama_base_url,
+                default_model=self.config.model_name
             )
             self.providers["ollama"] = OllamaClient(ollama_config)
     
@@ -77,16 +80,17 @@ class AIGateway:
         """
         # Auto-select provider based on config
         if provider is None:
-            if self.rag_config.use_ollama and "ollama" in self.providers:
-                provider = "ollama"
-            elif not self.rag_config.use_ollama and "purdue" in self.providers:
-                provider = "purdue"
-            elif "ollama" in self.providers:
-                provider = "ollama"
-            elif "purdue" in self.providers:
-                provider = "purdue"
-            else:
-                raise Exception("No providers available. Set PURDUE_API_KEY or USE_OLLAMA=true")
+            provider = self.config.provider_name
+            # Fallback logic if primary provider not available
+            if provider not in self.providers:
+                if self.config.provider_fallback and self.config.provider_fallback in self.providers:
+                    provider = self.config.provider_fallback
+                elif "ollama" in self.providers:
+                    provider = "ollama"
+                elif "purdue" in self.providers:
+                    provider = "purdue"
+                else:
+                    raise Exception(f"No providers available. Configure provider in config or set API keys in .env")
         
         if provider not in self.providers:
             available = ", ".join(self.providers.keys())
@@ -98,8 +102,8 @@ class AIGateway:
         if provider == "ollama":
             return self._chat_ollama(provider_client, message, model)
         else:
-            # Use config model for Purdue API if no model specified
-            model = model or self.rag_config.model_name
+            # Use config model if no model specified
+            model = model or self.config.model_name
             return provider_client.chat(message, model)
     
     def _chat_ollama(self, client: OllamaClient, message: str, model: Optional[str] = None) -> str:

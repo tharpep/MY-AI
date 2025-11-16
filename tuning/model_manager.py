@@ -7,19 +7,19 @@ import argparse
 import sys
 from pathlib import Path
 from .model_registry import ModelRegistry, get_model_registry
-from core.utils.config import get_tuning_config
+from core.config import get_config
 
 
 def list_versions():
     """List all model versions"""
-    config = get_tuning_config()
+    config = get_config()
     registry = get_model_registry(config)
     registry.list_versions()
 
 
 def set_active_version(version: str):
     """Set a version as active"""
-    config = get_tuning_config()
+    config = get_config()
     registry = get_model_registry(config)
     
     if registry.set_active_version(version):
@@ -31,7 +31,7 @@ def set_active_version(version: str):
 
 def get_active_version():
     """Get the currently active version"""
-    config = get_tuning_config()
+    config = get_config()
     registry = get_model_registry(config)
     
     active_version = registry.get_active_version()
@@ -47,7 +47,7 @@ def get_active_version():
 
 def get_latest_version():
     """Get the latest version"""
-    config = get_tuning_config()
+    config = get_config()
     registry = get_model_registry(config)
     
     latest_version = registry.get_latest_version()
@@ -63,7 +63,7 @@ def get_latest_version():
 
 def show_version_info(version: str):
     """Show detailed info for a specific version"""
-    config = get_tuning_config()
+    config = get_config()
     registry = get_model_registry(config)
     
     version_obj = registry.get_version(version)

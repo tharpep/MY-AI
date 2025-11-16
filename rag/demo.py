@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from .rag_setup import BasicRAG
 from .document_ingester import DocumentIngester
-from core.utils.config import get_rag_config
+from core.config import get_config
 from core.utils.logging_config import log_rag_result
 
 
@@ -17,7 +17,7 @@ def run_rag_demo(mode="automated"):
     print("=== RAG Demo ===")
     
     # Get configuration
-    config = get_rag_config()
+    config = get_config()
     print(f"Using model: {config.model_name}")
     print(f"Provider: {'Ollama' if config.use_ollama else 'Purdue API'}")
     
@@ -33,7 +33,7 @@ def run_rag_demo(mode="automated"):
         
         if documents_folder.exists():
             # Check if we should clear the collection first
-            if config.clear_on_ingest:
+            if config.rag_clear_on_ingest:
                 print("Clearing existing documents...")
                 clear_result = rag.clear_collection()
                 if clear_result.get("success"):
