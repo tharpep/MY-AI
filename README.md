@@ -75,13 +75,53 @@ ollama pull deepseek-r1:7b
 ```bash
 git clone https://github.com/yourusername/MY-AI.git
 cd MY-AI
-poetry install  # or pip install -r requirements.txt
+poetry install
 ```
 
-### 4. Run the Application
+### 4. Initial Setup (One-time)
+```bash
+# Activate Poetry shell (adds myai command to PATH)
+poetry shell
+
+# Setup virtual environment and install dependencies
+myai setup
+```
+
+### 5. Use the CLI
+After setup, use commands directly:
+
+```bash
+# Make sure you're in Poetry shell
+poetry shell
+
+# Interactive chat
+myai chat
+
+# Chat with specific provider/model
+myai chat --provider ollama --model qwen3:8b
+
+# Run demos
+myai demo rag
+myai demo llm
+myai demo api
+
+# Run tests
+myai test --all
+myai test tests_api
+
+# Show configuration
+myai config
+
+# Get help
+myai --help
+myai chat --help
+```
+
+### 6. Run the API Server (Optional)
 ```bash
 # Development mode
-make dev
+poetry dev
+# Or: make dev
 
 # Or with Docker
 make docker-dev
@@ -172,20 +212,52 @@ See `/Documentation/` for detailed specifications and development roadmap.
 Try the system locally without setting up the full API:
 
 ```bash
+# Activate Poetry shell first
+poetry shell
+
+# Interactive chat with AI
+myai chat
+
+# Chat with specific provider/model
+myai chat --provider ollama --model qwen3:8b
+
 # RAG demo (automated)
-poetry run my-ai demo rag
+myai demo rag
 
 # LLM demo (automated)
-poetry run my-ai demo llm
+myai demo llm
 
 # Run all tests
-poetry run my-ai test --all
+myai test --all
 
 # Run specific test category
-poetry run my-ai test tests_api
+myai test tests_api
 
 # Show configuration
-poetry run my-ai config
+myai config
+
+# Setup environment
+myai setup
+```
+
+### Tab Completion
+Enable tab completion for faster CLI usage:
+
+```bash
+# Make sure you're in Poetry shell
+poetry shell
+
+# For bash/zsh
+myai --install-completion bash
+# Then add to ~/.bashrc or ~/.zshrc:
+# eval "$(_MYAI_COMPLETE=bash_source myai)"
+
+# For PowerShell (Windows)
+myai --install-completion powershell
+# Then add to your PowerShell profile
+
+# For fish
+myai --install-completion fish | source
 ```
 
 ## Contributing

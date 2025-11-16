@@ -1,9 +1,16 @@
 """CLI utility functions"""
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import typer
+
+
+def is_poetry_environment() -> bool:
+    """Check if running under Poetry-managed environment"""
+    # Poetry sets POETRY_ACTIVE=1 when running scripts
+    return os.getenv("POETRY_ACTIVE") == "1" or "poetry" in sys.executable.lower()
 
 
 def get_python_cmd() -> str:
@@ -15,11 +22,19 @@ def get_python_cmd() -> str:
 
 
 def check_venv() -> bool:
-    """Check if virtual environment exists"""
+    """
+    Check if virtual environment exists or if running under Poetry.
+    Returns True if Poetry is managing the environment, False otherwise.
+    """
+    # If running under Poetry, it manages the venv automatically
+    if is_poetry_environment():
+        return True
+    
+    # Otherwise, check for local venv directory
     venv_path = Path("venv")
     if not venv_path.exists():
         typer.echo("Virtual environment not found!", err=True)
-        typer.echo("Run: my-ai setup first")
+        typer.echo("Run: poetry shell, then 'myai setup' first")
         return False
     return True
 
