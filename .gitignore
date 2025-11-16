@@ -24,13 +24,13 @@ share/python-wheels/
 MANIFEST
 
 # Virtual environments
-.env
 .venv
-env/
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
+.venv/
 
 # IDE
 .vscode/
@@ -44,19 +44,44 @@ venv.bak/
 ._*
 .Spotlight-V100
 .Trashes
+.AppleDouble
+.LSOverride
+Icon
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
 ehthumbs.db
 Thumbs.db
 
 # Project specific
 # Downloaded AI models and LLM files
+packages/llms/downloaded_ai_llms/
 llm/downloaded_ai_llms/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.pkl
+*.h5
+*.onnx
+*.tflite
+*.pb
+models/
+checkpoints/
+*.model
+*.weights
 
 # Poetry
 poetry.lock
+.poetry/
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
 .nox/
@@ -82,10 +107,12 @@ logs/
 
 # Environment variables
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+!.env.example
 
 # Temporary files
 *.tmp
@@ -93,3 +120,18 @@ logs/
 
 # Docker
 .dockerignore
+docker-compose.override.yml
+
+# Type checking and linting
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# IDE - Additional
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+.history/

@@ -11,7 +11,7 @@ from core.utils.config import get_rag_config
 
 
 def run_llm_demo(mode="automated"):
-    """Run LLM demo in automated or interactive mode"""
+    """Run LLM demo in automated mode"""
     print("=== Direct LLM Demo ===")
     
     # Get configuration
@@ -27,75 +27,44 @@ def run_llm_demo(mode="automated"):
         # Test connection
         print("Testing connection...")
         test_response = gateway.chat("Hello, are you working?", provider=None, model=None)
-        print(f"✅ Connection test successful: {test_response[:50]}...")
+        print(f"Connection test successful: {test_response[:50]}...")
         
-        if mode == "automated":
-            # Automated demo
-            print("\n=== Automated Demo ===")
-            
-            demo_questions = [
-                "Hello! How are you today?",
-                "What is the capital of France?",
-                "Explain quantum computing in simple terms.",
-                "Write a short poem about programming.",
-                "What are the benefits of renewable energy?"
-            ]
-            
-            for i, question in enumerate(demo_questions, 1):
-                print(f"\n--- Question {i} ---")
-                print(f"User: {question}")
-                print("LLM: Thinking...")
-                
-                start_time = time.time()
-                try:
-                    response = gateway.chat(question, provider=None, model=None)
-                    response_time = time.time() - start_time
-                    
-                    print(f"LLM: {response}")
-                    print(f"Response time: {response_time:.2f}s")
-                    
-                except Exception as e:
-                    print(f"❌ Error: {e}")
-                    import traceback
-                    print(f"Full traceback:\n{traceback.format_exc()}")
-                
-                # Small delay between questions
-                time.sleep(1)
-            
-            print("\n=== Automated Demo Complete ===")
-            
-        elif mode == "interactive":
-            # Interactive mode
-            print("\n=== Interactive Mode ===")
-            print("Chat with the LLM directly (type 'quit' to exit):")
-            print("Note: This is pure LLM interaction - no document context")
-            
-            while True:
-                question = input("\nYou: ").strip()
-                if question.lower() in ['quit', 'exit', 'q']:
-                    break
-                
-                if question:
-                    print("LLM: Thinking...")
-                    try:
-                        start_time = time.time()
-                        response = gateway.chat(question, provider=None, model=None)
-                        response_time = time.time() - start_time
-                        
-                        print(f"LLM: {response}")
-                        print(f"Response time: {response_time:.2f}s")
-                        
-                    except Exception as e:
-                        print(f"❌ Error: {e}")
-                        import traceback
-                        print(f"Full traceback:\n{traceback.format_exc()}")
+        # Automated demo
+        print("\n=== Automated Demo ===")
         
-        else:
-            print(f"❌ Unknown mode: {mode}")
-            return 1
+        demo_questions = [
+            "Hello! How are you today?",
+            "What is the capital of France?",
+            "Explain quantum computing in simple terms.",
+            "Write a short poem about programming.",
+            "What are the benefits of renewable energy?"
+        ]
+        
+        for i, question in enumerate(demo_questions, 1):
+            print(f"\n--- Question {i} ---")
+            print(f"User: {question}")
+            print("LLM: Thinking...")
+            
+            start_time = time.time()
+            try:
+                response = gateway.chat(question, provider=None, model=None)
+                response_time = time.time() - start_time
+                
+                print(f"LLM: {response}")
+                print(f"Response time: {response_time:.2f}s")
+                
+            except Exception as e:
+                print(f"Error: {e}")
+                import traceback
+                print(f"Full traceback:\n{traceback.format_exc()}")
+            
+            # Small delay between questions
+            time.sleep(1)
+        
+        print("\n=== Automated Demo Complete ===")
             
     except Exception as e:
-        print(f"❌ Demo failed: {e}")
+        print(f"Demo failed: {e}")
         import traceback
         print(f"Full traceback:\n{traceback.format_exc()}")
         return 1
@@ -135,14 +104,14 @@ async def run_embeddings_demo():
                 print(f"Response time: {response_time:.2f}s")
                 
             except Exception as e:
-                print(f"❌ Error: {e}")
+                print(f"Error: {e}")
                 import traceback
                 print(f"Full traceback:\n{traceback.format_exc()}")
         
         print("\n=== Embeddings Demo Complete ===")
         
     except Exception as e:
-        print(f"❌ Embeddings demo failed: {e}")
+        print(f"Embeddings demo failed: {e}")
         import traceback
         print(f"Full traceback:\n{traceback.format_exc()}")
         return 1
@@ -157,7 +126,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         mode = sys.argv[1]
     else:
-        mode = "interactive"
+        mode = "automated"
     
     if mode == "embeddings":
         result = asyncio.run(run_embeddings_demo())

@@ -129,10 +129,10 @@ def run_tuning_demo(mode="quick"):
             except Exception as e:
                 print(f"Error generating for '{prompt}': {e}")
         
-        print("\n✅ Tuning demo completed successfully!")
+        print("\nTuning demo completed successfully!")
         
     except Exception as e:
-        print(f"❌ Demo failed: {e}")
+        print(f"Demo failed: {e}")
 
 
 def main():
