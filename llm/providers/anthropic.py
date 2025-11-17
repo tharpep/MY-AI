@@ -50,7 +50,7 @@ class AnthropicClient(BaseLLMClient):
             raise ValueError("API key is required. Provide it directly or set CLAUDE environment variable.")
         
         self.base_url = "https://api.anthropic.com/v1/messages"
-        self.default_model = "claude-3-5-sonnet-20241022"
+        self.default_model = "claude-haiku-4-5-20251001"  # Latest Haiku 4.5 model (Oct 2025)
         self.api_version = "2023-06-01"
     
     def chat(self, messages: Any, model: Optional[str] = None, **kwargs) -> str:
@@ -59,7 +59,7 @@ class AnthropicClient(BaseLLMClient):
         
         Args:
             messages: Your message (str) or messages list with 'role' and 'content' keys
-            model: Model to use (default: claude-3-5-sonnet-20241022)
+            model: Model to use (default: claude-haiku-4-5-20251001 - Latest Haiku 4.5)
             
         Returns:
             str: AI response text
@@ -144,16 +144,14 @@ class AnthropicClient(BaseLLMClient):
     
     def get_available_models(self) -> List[str]:
         """
-        Get list of available Anthropic models
+        Get list of available Anthropic models (latest versions only)
         
         Returns:
             List of model names
         """
         return [
-            "claude-3-5-sonnet-20241022",
-            "claude-3-5-haiku-20241022",
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307"
+            "claude-opus-4-1-20250805",  # Latest Opus 4.1 (Aug 2025) - Most capable
+            "claude-sonnet-4-5-20250929",  # Latest Sonnet 4.5 (Sep 2025) - Balanced performance
+            "claude-haiku-4-5-20251001",  # Latest Haiku 4.5 (Oct 2025) - Fast, cost-effective
         ]
 
