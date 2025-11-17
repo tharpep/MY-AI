@@ -13,19 +13,19 @@ A privacy-focused personal AI assistant that runs locally first, with optional c
 ## Core Features
 
 ### Current Features (Implemented)
-- 📚 **RAG Answer Tool**: Search and cite from your personal document corpus
-- 💬 **OpenAI-Compatible Chat**: `/v1/chat/completions` with provider/model selection
-- 📊 **Request Logging**: SQLite database for request tracking and debugging
-- 🔧 **Tool Foundation**: Extensible tool system with registry and execution engine
-- 📝 **Document Ingestion**: Add documents to RAG knowledge base
-- 🔍 **Health Monitoring**: Health check endpoints with detailed status
+- **RAG Answer Tool**: Search and cite from your personal document corpus
+- **OpenAI-Compatible Chat**: `/v1/chat/completions` with provider/model selection
+- **Request Logging**: SQLite database for request tracking and debugging
+- **Tool Foundation**: Extensible tool system with registry and execution engine
+- **Document Ingestion**: Add documents to RAG knowledge base
+- **Health Monitoring**: Health check endpoints with detailed status
 
 ### Planned Features
-- 🌐 **Web Search Tool**: Fetch public references with attribution
-- 📁 **Drive Search Tool**: Find files across connected storage
-- 📅 **Calendar Integration**: Read events and scheduling data
-- 🎵 **Spotify Lookup**: Access playlists and music data (v2)
-- 💰 **Banking Read-Only**: Financial insights (v2, optional, secure)
+- **Web Search Tool**: Fetch public references with attribution
+- **Drive Search Tool**: Find files across connected storage
+- **Calendar Integration**: Read events and scheduling data
+- **Spotify Lookup**: Access playlists and music data (v2)
+- **Banking Read-Only**: Financial insights (v2, optional, secure)
 
 ## API Endpoints
 
@@ -91,25 +91,27 @@ ollama pull deepseek-r1:7b
 ```bash
 git clone https://github.com/yourusername/MY-AI.git
 cd MY-AI
-poetry install
 ```
 
-### 4. Initial Setup (One-time)
+### 4. Install Poetry and Setup
 ```bash
+# Install Poetry
+python -m pip install --user poetry
+
+# Install Poetry shell plugin (required for Poetry 2.0+)
+poetry self add poetry-plugin-shell
+
+# Install project dependencies (creates venv and installs packages)
+poetry install
+
 # Activate Poetry shell (adds myai command to PATH)
 poetry shell
-
-# Setup virtual environment and install dependencies
-myai setup
 ```
 
 ### 5. Use the CLI
-After setup, use commands directly:
+Commands are available after activating the Poetry shell:
 
 ```bash
-# Make sure you're in Poetry shell
-poetry shell
-
 # Interactive chat
 myai chat
 
@@ -132,6 +134,8 @@ myai config
 myai --help
 myai chat --help
 ```
+
+**Note:** If you prefer not to use the shell plugin, prefix commands with `poetry run` (e.g., `poetry run myai chat`).
 
 ### 6. Run the API Server (Optional)
 ```bash
@@ -180,6 +184,19 @@ curl http://localhost:8000/v1/models
 
 All responses include a `request_id` field for tracing. Check `./data/api_logs.db` for request history.
 
+## CLI Commands
+
+### Setup Commands
+- `myai setup-poetry [--install]` - Check/install Poetry and shell plugin
+
+### Usage Commands
+- `myai chat` - Interactive chat with AI
+- `myai demo [rag|llm|api|tuning]` - Run automated demos
+- `myai test [--all] [category]` - Run tests
+- `myai config` - Show current configuration
+
+For help on any command: `myai <command> --help`
+
 ## Features
 
 ### API Features
@@ -202,65 +219,65 @@ All responses include a `request_id` field for tracing. Check `./data/api_logs.d
 - **Error Tracking**: Failed requests logged with error details
 
 ## Security & Privacy
-- ✅ Local processing by default
-- ✅ No secrets in logs (PII redaction)
-- ✅ Parameterized queries only
-- ✅ User data stays on your machine
-- ✅ Optional cloud features require explicit consent
-- ✅ Request logging stored locally (SQLite)
-- ✅ Tool allowlist for security control
+- Local processing by default
+- No secrets in logs (PII redaction)
+- Parameterized queries only
+- User data stays on your machine
+- Optional cloud features require explicit consent
+- Request logging stored locally (SQLite)
+- Tool allowlist for security control
 
 ## Development Roadmap
 
-### ✅ Step 0: Planning & Contracts (Complete)
+### Step 0: Planning & Contracts (Complete)
 - Software contracts and guardrails defined
 - API surfaces and tool allowlists established
 - Tier-2 routing strategy documented
 
-### ✅ Step 1: API Scaffolding (Complete)
+### Step 1: API Scaffolding (Complete)
 - Repository structure: Single-package format with `app/`, `llm/`, `rag/`, `agents/`, `connectors/`, `core/`
 - Basic `/v1/query` endpoint with placeholder responses
 - Health check endpoint
 - LLM Gateway with Ollama integration
 
-### ✅ Step 2: Local LLM Gateway (Complete)
+### Step 2: Local LLM Gateway (Complete)
 - Ollama integration for local models
 - OpenAI-compatible `/v1/chat/completions` and `/v1/embeddings` endpoints
 - Configurable local/cloud model switching
 - Provider override support in requests
 
-### ✅ Step 3: RAG MVP (Complete)
+### Step 3: RAG MVP (Complete)
 - Document ingestion and chunking pipeline
 - Qdrant vector storage with persistent collections
 - Cited answer retrieval from personal corpus
 - Interactive demos and CLI tools
 
-### ✅ Step 4: API Enhancements (Complete)
-- **Route Organization**: Separated endpoints into logical modules (llm, query, ingest, health)
-- **Error Handling**: Comprehensive HTTP status codes and structured error responses
-- **Request Logging**: SQLite database for request tracking and debugging
-- **Provider Selection**: Chat endpoint supports provider/model override
-- **Request IDs**: All requests tracked with unique IDs for tracing
+### Step 4: API Enhancements (Complete)
+- Route Organization: Separated endpoints into logical modules (llm, query, ingest, health)
+- Error Handling: Comprehensive HTTP status codes and structured error responses
+- Request Logging: SQLite database for request tracking and debugging
+- Provider Selection: Chat endpoint supports provider/model override
+- Request IDs: All requests tracked with unique IDs for tracing
 
-### ✅ Step 5: Tool Foundation (Complete)
-- **Base Tool Interface**: Abstract class for all tools
-- **Tool Registry**: Centralized tool management with allowlist support
-- **Tool Execution Engine**: Validation, execution, and error handling
-- **RAG Answer Tool**: First tool implementation for RAG-powered queries
-- **Tool Router**: Intent analysis and tool selection (basic heuristic routing)
+### Step 5: Tool Foundation (Complete)
+- Base Tool Interface: Abstract class for all tools
+- Tool Registry: Centralized tool management with allowlist support
+- Tool Execution Engine: Validation, execution, and error handling
+- RAG Answer Tool: First tool implementation for RAG-powered queries
+- Tool Router: Intent analysis and tool selection (basic heuristic routing)
 
-### 📋 Step 6: Tool Integration (In Progress)
+### Step 6: Tool Integration (In Progress)
 - Web search tool implementation
 - Drive search tool implementation
 - Calendar lookup tool implementation
 - Tool execution transcripts and logging
 
-### 📋 Step 7: Memory System (Planned)
+### Step 7: Memory System (Planned)
 - Short-term session memory
 - Local storage with purge capabilities
 - Foundation for future long-term memory
 
-### 📋 Step 8: Dynamic Corpus (Future)
+### Step 8: Dynamic Corpus (Future)
 - AI-proposed document updates
 - Human approval workflow
 - Provenance tracking and diff management
@@ -306,16 +323,16 @@ MY-AI/
 ```
 
 ## Development Status
-✅ **Steps 0-5 Complete** - Core API, LLM Gateway, RAG system, API enhancements, and tool foundation fully implemented  
-🚧 **Step 6 In Progress** - Tool implementations (web_search, drive_search, calendar_lookup)  
-📋 **Steps 7-8 Planned** - Memory System, Dynamic Corpus
+**Steps 0-5 Complete** - Core API, LLM Gateway, RAG system, API enhancements, and tool foundation fully implemented  
+**Step 6 In Progress** - Tool implementations (web_search, drive_search, calendar_lookup)  
+**Steps 7-8 Planned** - Memory System, Dynamic Corpus
 
 ### Recent Updates
-- ✅ **Request Logging**: All API requests logged to SQLite for debugging and analytics
-- ✅ **Enhanced Error Handling**: Proper HTTP status codes and structured error responses
-- ✅ **Provider Override**: Chat endpoint supports explicit provider/model selection
-- ✅ **Tool System**: Extensible tool foundation with registry and execution engine
-- ✅ **Route Organization**: Clean separation of endpoints into logical modules
+- Request Logging: All API requests logged to SQLite for debugging and analytics
+- Enhanced Error Handling: Proper HTTP status codes and structured error responses
+- Provider Override: Chat endpoint supports explicit provider/model selection
+- Tool System: Extensible tool foundation with registry and execution engine
+- Route Organization: Clean separation of endpoints into logical modules
 
 See `/Documentation/` for detailed specifications and development roadmap.
 
@@ -323,9 +340,6 @@ See `/Documentation/` for detailed specifications and development roadmap.
 Try the system locally without setting up the full API:
 
 ```bash
-# Activate Poetry shell first
-poetry shell
-
 # Interactive chat with AI
 myai chat
 
@@ -346,18 +360,12 @@ myai test tests_api
 
 # Show configuration
 myai config
-
-# Setup environment
-myai setup
 ```
 
 ### Tab Completion
 Enable tab completion for faster CLI usage:
 
 ```bash
-# Make sure you're in Poetry shell
-poetry shell
-
 # For bash/zsh
 myai --install-completion bash
 # Then add to ~/.bashrc or ~/.zshrc:
@@ -381,7 +389,8 @@ PROVIDER_TYPE=local
 PROVIDER_NAME=ollama
 MODEL_DEFAULT=llama3.2:1b
 OLLAMA_BASE_URL=http://localhost:11434
-PURDUE_API_KEY=your_key_here  # Optional
+PURDUE_API_STUDIO=your_purdue_key_here  # Optional
+CLAUDE=your_claude_key_here  # Optional
 ```
 
 View current configuration:

@@ -53,7 +53,8 @@ class AppConfig(BaseSettings):
     # ===== Purdue API Configuration =====
     purdue_api_key: Optional[str] = Field(
         default=None,
-        description="Purdue GenAI Studio API key (from .env)"
+        description="Purdue GenAI Studio API key (from .env as PURDUE_API_STUDIO)",
+        validation_alias="PURDUE_API_STUDIO"
     )
 
     # ===== External API Configuration (for future use) =====
@@ -67,7 +68,8 @@ class AppConfig(BaseSettings):
     )
     anthropic_api_key: Optional[str] = Field(
         default=None,
-        description="Anthropic API key (from .env)"
+        description="Anthropic/Claude API key (from .env as CLAUDE)",
+        validation_alias="CLAUDE"
     )
 
     # ===== RAG Configuration =====
