@@ -88,10 +88,15 @@ def chat(
 
                 typer.echo("AI: ", nl=False)
                 try:
+                    # Get LLM prompt and format user message
+                    from core.prompts import get_prompt
+                    llm_template = get_prompt("llm")
+                    formatted_message = f"{llm_template}\n\nUser: {user_input}"
+                    
                     # Pass full conversation history for stateful chat
                     # Use model_name (provider-specific default) if no model override
                     response = gateway.chat(
-                        message=user_input,
+                        message=formatted_message,
                         provider=provider,
                         model=model_name if model is None else model,
                         messages=conversation_history

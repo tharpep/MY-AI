@@ -132,14 +132,18 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         if request.max_tokens is not None:
             kwargs["max_tokens"] = request.max_tokens
         
-        # Call gateway with full message history
-        # For now, use single turn (last message) as per Phase 1 requirements
-        # Message array support is ready in gateway, but keeping single turn for now
+        # Get LLM prompt and format user message
+        from core.prompts import get_prompt
+        llm_template = get_prompt("llm")
+        user_message = messages[-1]["content"]
+        formatted_message = f"{llm_template}\n\nUser: {user_message}"
+        
+        # Call gateway with formatted message
+        # Gateway will pass through to provider
         response = gateway.chat(
-            message=messages[-1]["content"],
+            message=formatted_message,
             provider=provider_used,  # Use specified provider or auto-select
-            model=request.model,
-            messages=messages  # Pass full history for future use
+            model=request.model
         )
         
         # Determine which provider was actually used

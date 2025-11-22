@@ -102,13 +102,10 @@ class BasicRAG:
         # Build RAG context from retrieved documents
         rag_context = "\n\n".join([doc for doc, _ in retrieved_docs])
         
-        # Create prompt
-        prompt = f"""Context:
-{rag_context}
-
-Question: {question}
-
-Answer:"""
+        # Create prompt from template
+        from core.prompts import get_prompt, format_prompt
+        rag_template = get_prompt("rag")
+        prompt = format_prompt(rag_template, context=rag_context, question=question)
         
         # Generate answer
         answer = self.gateway.chat(prompt, provider=None, model=None)
