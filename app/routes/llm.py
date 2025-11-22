@@ -142,10 +142,14 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         # Get config
         config = gateway.config
         
+        # Timing breakdown
+        prep_start = time.time()
+        
         # Use ChatService to prepare message with RAG context
         from core.services import ChatService
+        from ..main import rag_instance
         
-        chat_service = ChatService(config)
+        chat_service = ChatService(config, rag_instance=rag_instance)
         message_result = chat_service.prepare_chat_message(
             user_message=user_message,
             conversation_history=messages[:-1],  # All messages except the current one
@@ -156,6 +160,8 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
             rag_prompt_template=request.rag_prompt_template
         )
         
+        prep_time = (time.time() - prep_start) * 1000
+        
         # Update the last message in messages array with formatted message
         # This preserves conversation history while adding RAG context to current message
         messages[-1]["content"] = message_result.formatted_message
@@ -164,20 +170,34 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         # Log model/provider usage if logging enabled
         if config.log_output:
             import logging
+            from datetime import datetime
             logger = logging.getLogger(__name__)
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             model_to_use = request.model or gateway.config.model_name
             provider_to_use = provider_used or "auto-select"
-            logger.info(f"Chat - Provider: {provider_to_use}, Model: {model_to_use}")
-            logger.info(f"Chat - RAG Context: {'Yes' if rag_results else 'No'}")
+            logger.info(f"[{timestamp}] Chat Request:")
+            logger.info(f"  Provider: {provider_to_use}, Model: {model_to_use}")
+            logger.info(f"  RAG Context: {'Yes' if rag_results else 'No'} ({len(rag_results) if rag_results else 0} docs)")
+            logger.info(f"  Message Prep: {prep_time:.1f}ms")
         
         # Call gateway with messages array (which now includes RAG context in the user message)
         # Gateway will use messages array if provided, message parameter is just for backward compatibility
+        llm_start = time.time()
         response = gateway.chat(
             message=message_result.formatted_message,  # Fallback if messages not supported
             provider=provider_used,
             model=request.model,
             messages=messages  # Pass messages array with RAG context included
         )
+        llm_time = (time.time() - llm_start) * 1000
+        
+        # Log LLM timing if enabled
+        if config.log_output:
+            import logging
+            from datetime import datetime
+            logger = logging.getLogger(__name__)
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            logger.info(f"[{timestamp}] LLM Generation: {llm_time:.1f}ms")
         
         # Determine which provider was actually used
         # Note: If provider_used is None, gateway auto-selected based on config/fallback
@@ -196,6 +216,16 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         prompt_tokens = int(len(prompt_text.split()) * 1.3)
         completion_tokens = int(len(response.split()) * 1.3)
         total_tokens = prompt_tokens + completion_tokens
+        
+        # Log total timing breakdown if enabled
+        if config.log_output:
+            import logging
+            from datetime import datetime
+            logger = logging.getLogger(__name__)
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            total_time = (time.time() - start_time) * 1000
+            logger.info(f"[{timestamp}] Total Request Time: {total_time:.1f}ms")
+            logger.info(f"  Breakdown: Prep {prep_time:.1f}ms + LLM {llm_time:.1f}ms = {total_time:.1f}ms")
         
         # Get model name (use requested model or default)
         model_used = request.model or gateway.config.model_name

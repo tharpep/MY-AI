@@ -133,10 +133,26 @@ class AppConfig(BaseSettings):
         description="Top-k documents to retrieve for chat RAG (1-100)"
     )
     chat_rag_similarity_threshold: float = Field(
-        default=0.7,
+        default=0.15,
         ge=0.0,
         le=1.0,
-        description="Minimum similarity score for chat RAG context (0.0-1.0)"
+        description="Minimum similarity score for chat RAG context (0.0-1.0). Lower values allow more documents through."
+    )
+    
+    # ===== RAG Enhancement Configuration =====
+    chat_rag_use_context_cache: bool = Field(
+        default=True,
+        description="Enable context caching to reuse RAG results from previous messages"
+    )
+    chat_rag_use_conversation_aware: bool = Field(
+        default=True,
+        description="Use conversation history to build better RAG queries"
+    )
+    chat_rag_min_results_threshold: int = Field(
+        default=2,
+        ge=0,
+        le=10,
+        description="Minimum number of RAG results before trying fallback strategies (0-10)"
     )
 
     # ===== Document Source Configuration =====

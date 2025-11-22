@@ -1,7 +1,7 @@
 """Personal AI Assistant CLI - Main entry point"""
 import typer
 
-from .commands import setup, test, demo, config, chat, query
+from .commands import setup, test, demo, config, chat, query, ingest
 
 app = typer.Typer(
     name="myai",
@@ -16,6 +16,7 @@ app.command(name="demo")(demo)
 app.command(name="config")(config)
 app.command(name="chat")(chat)
 app.command(name="query")(query)
+app.command(name="ingest")(ingest)
 
 
 def main() -> None:

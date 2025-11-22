@@ -22,8 +22,58 @@ class VectorStore:
         
         # Setup Qdrant client
         if use_persistent:
-            self.client = QdrantClient(path="./data/qdrant_db")
-            print("Using persistent Qdrant storage")
+            try:
+                self.client = QdrantClient(path="./data/qdrant_db")
+                print("Using persistent Qdrant storage")
+            except Exception as e:
+                # Handle corrupted database (e.g., old format incompatible with new client)
+                error_str = str(e)
+                error_lower = error_str.lower()
+                is_corruption_error = (
+                    "init_from" in error_str or 
+                    "validation error" in error_lower or 
+                    "extra_forbidden" in error_str or
+                    "pydantic" in error_lower
+                )
+                
+                if is_corruption_error:
+                    import shutil
+                    from pathlib import Path
+                    import logging
+                    
+                    logger = logging.getLogger(__name__)
+                    db_path = Path("./data/qdrant_db")
+                    
+                    logger.warning("Qdrant database appears corrupted (incompatible format). Attempting to fix...")
+                    print("⚠️  Qdrant database format incompatible. Fixing automatically...")
+                    
+                    try:
+                        # Backup old database
+                        if db_path.exists():
+                            backup_path = Path("./data/qdrant_db_backup")
+                            if backup_path.exists():
+                                shutil.rmtree(backup_path)
+                            shutil.move(str(db_path), str(backup_path))
+                            logger.info(f"Old database backed up to: {backup_path}")
+                            print(f"   Backed up old database to: {backup_path}")
+                        
+                        # Recreate client with fresh database
+                        self.client = QdrantClient(path="./data/qdrant_db")
+                        logger.warning("Qdrant database recreated successfully.")
+                        print("✅ Database recreated. You may need to re-ingest documents.")
+                    except Exception as fix_error:
+                        logger.error(f"Failed to fix database: {fix_error}")
+                        logger.warning("Falling back to in-memory storage for this session.")
+                        print(f"❌ Could not fix database: {fix_error}")
+                        print("   Using in-memory storage for this session.")
+                        self.client = QdrantClient(":memory:")
+                        self.use_persistent = False  # Override to in-memory
+                else:
+                    # Other errors - re-raise with context
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Qdrant initialization failed: {e}")
+                    raise RuntimeError(f"Failed to initialize Qdrant client: {e}") from e
         else:
             self.client = QdrantClient(":memory:")
             print("Using in-memory Qdrant storage")

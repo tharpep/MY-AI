@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 # Global gateway instance
 gateway: AIGateway = None
 
+# Global RAG instance (initialized at startup if RAG is enabled)
+rag_instance = None
+
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log all API requests."""
@@ -94,6 +97,22 @@ async def lifespan(app: FastAPI):
     # Initialize gateway
     gateway = AIGateway()
     logger.info("AI Gateway initialized")
+    
+    # Initialize RAG if enabled (do this at startup to avoid delays during requests)
+    global rag_instance
+    try:
+        from core.config import get_config
+        config = get_config()
+        if config.chat_rag_enabled:
+            logger.info("Initializing RAG system...")
+            from rag.rag_setup import BasicRAG
+            rag_instance = BasicRAG()
+            logger.info("RAG system initialized and ready")
+        else:
+            logger.info("RAG is disabled in config")
+    except Exception as e:
+        logger.warning(f"RAG initialization failed, continuing without RAG: {e}")
+        rag_instance = None
     
     # Initialize tool registry and register default tools
     try:

@@ -53,17 +53,35 @@ def chat(
             typer.echo("Please check your configuration and ensure the AI service is running.", err=True)
             raise typer.Exit(1)
 
+        # Initialize RAG if enabled (do this at startup to avoid delays during chat)
+        rag_instance = None
+        if config.chat_rag_enabled:
+            try:
+                typer.echo("Initializing RAG system...")
+                from rag.rag_setup import BasicRAG
+                rag_instance = BasicRAG()
+                typer.echo("RAG system ready!")
+            except Exception as e:
+                typer.echo(f"Warning: RAG initialization failed: {e}", err=True)
+                typer.echo("Continuing without RAG support.", err=True)
+                rag_instance = None
+
         # Show connection info
         typer.echo("")
         typer.echo("=== AI Chat Session ===")
         typer.echo(f"Provider: {provider_name}")
         typer.echo(f"Model: {model_name}")
+        typer.echo(f"RAG: {'Enabled' if rag_instance else 'Disabled'}")
         typer.echo("Type 'quit', 'exit', or 'q' to end the session")
         typer.echo("Type 'clear' to reset conversation history")
         typer.echo("")
 
         # Maintain conversation history for stateful chat
         conversation_history = []
+        
+        # Create ChatService once and reuse (for cache persistence)
+        from core.services import ChatService
+        chat_service = ChatService(config, rag_instance=rag_instance)
 
         # Interactive chat loop
         while True:
@@ -85,10 +103,18 @@ def chat(
 
                 typer.echo("AI: ", nl=False)
                 try:
-                    # Use ChatService to prepare message with RAG context
-                    from core.services import ChatService
+                    import time
+                    from datetime import datetime
                     
-                    chat_service = ChatService(config)
+                    # Start total timing
+                    total_start = time.time()
+                    timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                    
+                    if config.log_output:
+                        typer.echo(f"[{timestamp}] Starting chat request...", err=True)
+                    
+                    # Use ChatService to prepare message with RAG context
+                    prep_start = time.time()
                     message_result = chat_service.prepare_chat_message(
                         user_message=user_input,
                         conversation_history=conversation_history,
@@ -98,6 +124,7 @@ def chat(
                         system_prompt=None,  # Use default
                         rag_prompt_template=None  # Use default
                     )
+                    prep_time = (time.time() - prep_start) * 1000
                     
                     # Log RAG results if logging enabled
                     if config.log_output:
@@ -105,6 +132,7 @@ def chat(
                             typer.echo(f"[RAG: Retrieved {len(message_result.rag_results)} docs]", err=True)
                         else:
                             typer.echo(f"[RAG: No docs found]", err=True)
+                        typer.echo(f"[Message Prep: {prep_time:.1f}ms]", err=True)
                     
                     # Add formatted message (with RAG context clearly separated) to conversation history
                     # This preserves previous conversation while adding RAG to current message
@@ -115,13 +143,25 @@ def chat(
                     
                     # Pass conversation history (which now includes RAG context in the user message)
                     # Gateway will use messages array if provided, message parameter is just for backward compatibility
+                    llm_start = time.time()
                     response = gateway.chat(
                         message=message_result.formatted_message,  # Fallback if messages not supported
                         provider=provider,
                         model=model_name if model is None else model,
                         messages=conversation_history
                     )
+                    llm_time = (time.time() - llm_start) * 1000
+                    total_time = (time.time() - total_start) * 1000
+                    
                     typer.echo(response)
+                    
+                    # Log timing breakdown
+                    if config.log_output:
+                        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                        typer.echo(f"[{timestamp}] Performance Breakdown:", err=True)
+                        typer.echo(f"  Message Prep: {prep_time:.1f}ms", err=True)
+                        typer.echo(f"  LLM Generation: {llm_time:.1f}ms", err=True)
+                        typer.echo(f"  Total: {total_time:.1f}ms", err=True)
                     
                     # Add AI response to history
                     conversation_history.append({"role": "assistant", "content": response})

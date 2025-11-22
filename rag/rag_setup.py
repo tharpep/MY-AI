@@ -112,13 +112,23 @@ class BasicRAG:
             logger.info(f"RAG Retrieval - Query: '{query[:100]}...'")
             logger.info(f"  Top-K: {top_k}, Threshold: {similarity_threshold}")
             logger.info(f"  Retrieved: {len(retrieved)} docs, Filtered: {len(filtered)} docs")
+            if retrieved:
+                logger.info(f"  Retrieved Documents (before threshold filter):")
+                for i, (doc, score) in enumerate(retrieved[:5], 1):  # Show top 5
+                    doc_preview = doc[:150] + "..." if len(doc) > 150 else doc
+                    passed = "✓" if score >= similarity_threshold else "✗"
+                    logger.info(f"    [{i}] {passed} Score: {score:.3f} | {doc_preview}")
             if filtered:
-                logger.info(f"  Retrieved Documents:")
+                logger.info(f"  Documents passing threshold ({len(filtered)}):")
                 for i, (doc, score) in enumerate(filtered, 1):
                     doc_preview = doc[:150] + "..." if len(doc) > 150 else doc
                     logger.info(f"    [{i}] Score: {score:.3f} | {doc_preview}")
             else:
-                logger.info(f"  No documents passed similarity threshold")
+                if retrieved:
+                    max_score = max(score for _, score in retrieved) if retrieved else 0
+                    logger.warning(f"  No documents passed threshold (max score: {max_score:.3f} < {similarity_threshold})")
+                else:
+                    logger.info(f"  No documents retrieved")
         
         return filtered
     
