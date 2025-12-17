@@ -6,6 +6,8 @@ import time
 import typer
 import socket
 
+from core.config import get_config
+
 
 def _check_redis_running(host: str = "localhost", port: int = 6379) -> bool:
     """Check if Redis is running and accepting connections"""
@@ -48,8 +50,9 @@ def _start_redis_container() -> bool:
             return True
         
         # Wait for Redis to be ready
+        config = get_config()
         for i in range(10):
-            if _check_redis_running():
+            if _check_redis_running(config.redis_host, config.redis_port):
                 typer.echo("[Redis] Redis is ready")
                 return True
             time.sleep(0.5)
@@ -112,8 +115,9 @@ def _start_qdrant_container() -> bool:
             return True
         
         # Wait for Qdrant to be ready
+        config = get_config()
         for i in range(20):  # Qdrant takes longer to start
-            if _check_qdrant_running():
+            if _check_qdrant_running(config.qdrant_host, config.qdrant_port):
                 typer.echo("[Qdrant] Qdrant is ready")
                 return True
             time.sleep(0.5)
@@ -166,8 +170,11 @@ def serve(
     signal.signal(signal.SIGTERM, cleanup)
     
     try:
+        # Get config for host/port settings
+        config = get_config()
+        
         # Check/start Qdrant (vector database)
-        if not _check_qdrant_running():
+        if not _check_qdrant_running(config.qdrant_host, config.qdrant_port):
             if auto_qdrant:
                 typer.echo("[Startup] Qdrant not running, attempting to start...")
                 if not _start_qdrant_container():
@@ -178,7 +185,7 @@ def serve(
             typer.echo("[Startup] Qdrant is running")
         
         # Check/start Redis (job queue)
-        if not _check_redis_running():
+        if not _check_redis_running(config.redis_host, config.redis_port):
             if auto_redis:
                 typer.echo("[Startup] Redis not running, attempting to start...")
                 if not _start_redis_container():

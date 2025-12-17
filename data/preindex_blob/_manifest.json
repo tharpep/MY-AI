@@ -1,12 +1,4 @@
 {
-  "blob_a8bb15c5bf85": {
-    "blob_id": "blob_a8bb15c5bf85",
-    "original_filename": "CLAUDE.md.txt",
-    "file_extension": ".txt",
-    "size_bytes": 2070,
-    "created_at": "2025-12-17T21:25:06.277933",
-    "storage_path": "data\\preindex_blob\\blob_a8bb15c5bf85.txt"
-  },
   "blob_27e1e3597ae2": {
     "blob_id": "blob_27e1e3597ae2",
     "original_filename": "CLAUDE.md.txt",
@@ -14,5 +6,21 @@
     "size_bytes": 2070,
     "created_at": "2025-12-17T21:33:08.504918",
     "storage_path": "data\\preindex_blob\\blob_27e1e3597ae2.txt"
+  },
+  "blob_c23361f69051": {
+    "blob_id": "blob_c23361f69051",
+    "original_filename": "CLAUDE.md.txt",
+    "file_extension": ".txt",
+    "size_bytes": 2070,
+    "created_at": "2025-12-17T21:36:01.702694",
+    "storage_path": "data\\preindex_blob\\blob_c23361f69051.txt"
+  },
+  "blob_71d445940776": {
+    "blob_id": "blob_71d445940776",
+    "original_filename": "15-diffusion-models.pdf",
+    "file_extension": ".pdf",
+    "size_bytes": 7523932,
+    "created_at": "2025-12-17T21:36:35.494193",
+    "storage_path": "data\\preindex_blob\\blob_71d445940776.pdf"
   }
 }

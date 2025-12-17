@@ -24,10 +24,14 @@ class BasicRAG:
         self.config = get_config()
         self.collection_name = collection_name or self.config.rag_collection_name
         
-        # Initialize components
+        # Initialize components with config values
         self.gateway = AIGateway()
-        self.vector_store = VectorStore(use_persistent=use_persistent if use_persistent is not None else self.config.rag_use_persistent)
-        self.retriever = DocumentRetriever()
+        self.vector_store = VectorStore(
+            use_persistent=use_persistent if use_persistent is not None else self.config.rag_use_persistent,
+            qdrant_host=self.config.qdrant_host,
+            qdrant_port=self.config.qdrant_port
+        )
+        self.retriever = DocumentRetriever(model_name=self.config.embedding_model)
         
         # Setup collection
         self._setup_collection()

@@ -65,8 +65,14 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         processed_text = ingester._preprocess_text(parsed.text)
         logger.info(f"[Worker] Text preprocessed ({len(processed_text)} chars)")
         
-        # Step 5: Chunk text
-        chunks = ingester._chunk_text(processed_text, max_chunk_size=1000)
+        # Step 5: Chunk text using config values
+        from core.config import get_config
+        config = get_config()
+        chunks = ingester._chunk_text(
+            processed_text, 
+            max_chunk_size=config.rag_chunk_size,
+            overlap=config.rag_chunk_overlap
+        )
         logger.info(f"[Worker] Created {len(chunks)} chunks")
         
         # Step 6: Add to vector database (Qdrant) with blob tracking metadata
@@ -93,10 +99,24 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         raise
 
 
-# arq worker settings - used when running: arq rag.workers.WorkerSettings
+# arq worker settings - uses config for Redis and timeout
+def _get_worker_settings():
+    """Get worker settings from config"""
+    from core.config import get_config
+    config = get_config()
+    return {
+        "host": config.redis_host,
+        "port": config.redis_port,
+        "timeout": config.worker_job_timeout
+    }
+
 class WorkerSettings:
     """arq worker configuration"""
     functions = [process_document]
-    redis_settings = RedisSettings(host='localhost', port=6379)
+    
+    # Get settings from config at import time
+    from core.config import get_config
+    _config = get_config()
+    redis_settings = RedisSettings(host=_config.redis_host, port=_config.redis_port)
     max_jobs = 10
-    job_timeout = 300  # 5 minutes per job
+    job_timeout = _config.worker_job_timeout

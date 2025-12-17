@@ -49,8 +49,14 @@ class DocumentIngester:
             # Basic preprocessing
             processed_content = self._preprocess_text(content)
             
-            # Chunk long documents
-            chunks = self._chunk_text(processed_content, max_chunk_size=1000)
+            # Chunk long documents using config values
+            from core.config import get_config
+            config = get_config()
+            chunks = self._chunk_text(
+                processed_content, 
+                max_chunk_size=config.rag_chunk_size,
+                overlap=config.rag_chunk_overlap
+            )
             
             # Index chunks
             count = self.rag.add_documents(chunks)

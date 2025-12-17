@@ -83,6 +83,36 @@ class AppConfig(BaseSettings):
         validation_alias=AliasChoices("CLAUDE", "ANTHROPIC_API_KEY")
     )
 
+    # ===== Qdrant Configuration =====
+    qdrant_host: str = Field(
+        default="localhost",
+        description="Qdrant server host"
+    )
+    qdrant_port: int = Field(
+        default=6333,
+        ge=1,
+        le=65535,
+        description="Qdrant server port"
+    )
+
+    # ===== Redis Configuration =====
+    redis_host: str = Field(
+        default="localhost",
+        description="Redis server host"
+    )
+    redis_port: int = Field(
+        default=6379,
+        ge=1,
+        le=65535,
+        description="Redis server port"
+    )
+
+    # ===== Blob Storage Configuration =====
+    blob_storage_path: str = Field(
+        default="./data/preindex_blob",
+        description="Path to blob storage directory for uploaded files pending indexing"
+    )
+
     # ===== RAG Configuration =====
     rag_use_persistent: bool = Field(
         default=True,
@@ -119,6 +149,34 @@ class AppConfig(BaseSettings):
         ge=0.0,
         le=1.0,
         description="Temperature for RAG generation (0.0-1.0)"
+    )
+    
+    # ===== RAG Chunking Configuration =====
+    rag_chunk_size: int = Field(
+        default=1000,
+        ge=100,
+        le=5000,
+        description="Maximum characters per chunk when processing documents (100-5000)"
+    )
+    rag_chunk_overlap: int = Field(
+        default=100,
+        ge=0,
+        le=500,
+        description="Overlap characters between chunks (0-500)"
+    )
+    
+    # ===== Embedding Model Configuration =====
+    embedding_model: str = Field(
+        default="sentence-transformers/all-MiniLM-L6-v2",
+        description="Sentence transformer model for embeddings"
+    )
+    
+    # ===== Worker Configuration =====
+    worker_job_timeout: int = Field(
+        default=300,
+        ge=30,
+        le=3600,
+        description="Maximum seconds for a worker job before timeout (30-3600)"
     )
 
     # ===== Chat RAG Configuration =====

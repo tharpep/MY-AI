@@ -191,8 +191,10 @@ _blob_storage: Optional[BlobStorage] = None
 
 
 def get_blob_storage() -> BlobStorage:
-    """Get the global BlobStorage instance"""
+    """Get the global BlobStorage instance (uses config for path)"""
     global _blob_storage
     if _blob_storage is None:
-        _blob_storage = BlobStorage()
+        from core.config import get_config
+        config = get_config()
+        _blob_storage = BlobStorage(storage_path=Path(config.blob_storage_path))
     return _blob_storage

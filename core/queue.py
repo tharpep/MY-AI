@@ -127,8 +127,11 @@ _queue: Optional[RedisQueue] = None
 
 
 async def get_redis_queue() -> RedisQueue:
-    """Get the global RedisQueue instance"""
+    """Get the global RedisQueue instance (uses config for Redis settings)"""
     global _queue
     if _queue is None:
-        _queue = RedisQueue()
+        from core.config import get_config
+        config = get_config()
+        settings = RedisSettings(host=config.redis_host, port=config.redis_port)
+        _queue = RedisQueue(redis_settings=settings)
     return _queue
