@@ -225,6 +225,26 @@ class BasicRAG:
             return {"error": f"Failed to clear collection: {str(e)}"}
 
 
+# Singleton instance
+_rag_instance: "BasicRAG | None" = None
+
+
+def get_rag() -> BasicRAG:
+    """
+    Get the global BasicRAG instance (singleton pattern).
+    
+    Initializes once on first call, reuses on subsequent calls.
+    This avoids repeated Qdrant connections and embedding model loads.
+    
+    Returns:
+        BasicRAG instance
+    """
+    global _rag_instance
+    if _rag_instance is None:
+        _rag_instance = BasicRAG()
+    return _rag_instance
+
+
 def main():
     """Demo of Basic RAG system"""
     print("=== Basic RAG Demo ===\n")

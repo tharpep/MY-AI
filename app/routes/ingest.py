@@ -365,12 +365,11 @@ async def get_indexed_stats() -> Dict[str, Any]:
     Returns:
         Dictionary with collection info and document counts
     """
-    from rag.rag_setup import BasicRAG
-    
     request_id = f"req_{uuid.uuid4().hex[:12]}"
     
     try:
-        rag = BasicRAG()
+        from rag.rag_setup import get_rag
+        rag = get_rag()
         stats = rag.get_stats()
         
         return {

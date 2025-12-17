@@ -22,5 +22,21 @@
     "size_bytes": 2070,
     "created_at": "2025-12-17T20:00:17.501920",
     "storage_path": "data\\preindex_blob\\blob_3b1e211f368a.txt"
+  },
+  "blob_b59b307a89e9": {
+    "blob_id": "blob_b59b307a89e9",
+    "original_filename": "CLAUDE.md.txt",
+    "file_extension": ".txt",
+    "size_bytes": 2070,
+    "created_at": "2025-12-17T20:39:28.154707",
+    "storage_path": "data\\preindex_blob\\blob_b59b307a89e9.txt"
+  },
+  "blob_d4e8a7c0df88": {
+    "blob_id": "blob_d4e8a7c0df88",
+    "original_filename": "CLAUDE.md.txt",
+    "file_extension": ".txt",
+    "size_bytes": 2070,
+    "created_at": "2025-12-17T20:43:07.962655",
+    "storage_path": "data\\preindex_blob\\blob_d4e8a7c0df88.txt"
   }
 }
