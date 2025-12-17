@@ -132,6 +132,22 @@ class BlobStorage:
         
         return storage_path
     
+    def get_info(self, blob_id: str) -> Optional[BlobInfo]:
+        """
+        Get full blob info including original filename.
+        
+        Args:
+            blob_id: The blob identifier
+            
+        Returns:
+            BlobInfo with original filename, or None if not found
+        """
+        manifest = self._load_manifest()
+        if blob_id not in manifest:
+            return None
+        
+        return BlobInfo(**manifest[blob_id])
+    
 
     def list(self) -> List[BlobInfo]:
         """

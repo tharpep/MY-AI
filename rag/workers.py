@@ -36,12 +36,14 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         # Step 1: Get blob from storage
         storage = get_blob_storage()
         file_path = storage.get(blob_id)
+        blob_info = storage.get_info(blob_id)  # Get original filename from manifest
         
         if file_path is None:
             logger.error(f"[Worker] Blob not found: {blob_id}")
             raise ValueError(f"Blob not found: {blob_id}")
         
-        logger.info(f"[Worker] Found blob at: {file_path}")
+        original_filename = blob_info.original_filename if blob_info else file_path.name
+        logger.info(f"[Worker] Found blob at: {file_path} (original: {original_filename})")
         
         # Step 2: Parse document (extract text)
         parser = get_document_parser()
@@ -71,7 +73,7 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         logger.info(f"[Worker] Adding {len(chunks)} chunks to Qdrant...")
         metadata = {
             "blob_id": blob_id,
-            "original_filename": parsed.original_filename
+            "original_filename": original_filename  # From blob manifest, not parsed path
         }
         count = rag.add_documents(chunks, metadata=metadata)
         logger.info(f"[Worker] Indexed {count} chunks to Qdrant")
