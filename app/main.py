@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from llm.gateway import AIGateway
 
-from .routes import health, llm, query, ingest
+from .routes import health, llm, query, ingest, config
 from .db import init_database, log_request
 
 # Configure logging
@@ -170,6 +170,7 @@ def create_app() -> FastAPI:
     app.include_router(llm.router, prefix="/v1", tags=["llm"])
     app.include_router(query.router, prefix="/v1", tags=["rag"])
     app.include_router(ingest.router, prefix="/v1", tags=["ingest"])
+    app.include_router(config.router, tags=["config"])
     
     return app
 
