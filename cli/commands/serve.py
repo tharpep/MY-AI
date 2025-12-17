@@ -118,16 +118,16 @@ def serve(
         if worker:
             typer.echo("[Startup] Starting Redis worker...")
             worker_proc = subprocess.Popen(
-                ["python", "-m", "arq", "rag.workers.WorkerSettings"],
+                [sys.executable, "-m", "arq", "rag.workers.WorkerSettings"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
             processes.append(worker_proc)
             typer.echo(f"[Startup] ✓ Worker started (PID: {worker_proc.pid})")
         
-        # Build uvicorn command
+        # Build uvicorn command - use sys.executable to ensure correct Python
         uvicorn_cmd = [
-            "python", "-m", "uvicorn",
+            sys.executable, "-m", "uvicorn",
             "app.main:app",
             "--host", host,
             "--port", str(port),

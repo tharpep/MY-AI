@@ -5,7 +5,8 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
-from fastapi.middleware.base import BaseHTTPMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from llm.gateway import AIGateway
 
 from .routes import health, llm, query, ingest
@@ -151,6 +152,14 @@ def create_app() -> FastAPI:
         description="OpenAI-compatible API for personal AI assistant",
         version="0.1.0",
         lifespan=lifespan
+    )
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000", "http://localhost:3001"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     
     # Add request logging middleware

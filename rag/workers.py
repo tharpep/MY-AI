@@ -48,23 +48,28 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         logger.error(f"[Worker] Failed to parse: {file_path}")
         raise ValueError(f"Failed to parse document: {file_path}")
     
-    logger.info(f"[Worker] Parsed {parsed.file_type}: {parsed.original_filename} ({parsed.page_count} pages)")
+    logger.info(f"[Worker] Parsed {parsed.file_type}: {parsed.original_filename} ({len(parsed.text)} chars, {parsed.page_count} pages)")
     
     # Step 3: Initialize RAG and ingester
+    logger.info(f"[Worker] Initializing RAG system...")
     rag = BasicRAG()
     ingester = DocumentIngester(rag)
+    logger.info(f"[Worker] RAG initialized (collection: {rag.collection_name})")
     
     # Step 4: Preprocess text
     processed_text = ingester._preprocess_text(parsed.text)
+    logger.info(f"[Worker] Text preprocessed ({len(processed_text)} chars)")
     
     # Step 5: Chunk text
     chunks = ingester._chunk_text(processed_text, max_chunk_size=1000)
     logger.info(f"[Worker] Created {len(chunks)} chunks")
     
-    # Step 6: Add to vector database
+    # Step 6: Add to vector database (Qdrant)
+    logger.info(f"[Worker] Adding {len(chunks)} chunks to Qdrant...")
     count = rag.add_documents(chunks)
+    logger.info(f"[Worker] Indexed {count} chunks to Qdrant")
     
-    logger.info(f"[Worker] Indexed {count} chunks from {blob_id}")
+    logger.info(f"[Worker] COMPLETE: {blob_id} -> {count} chunks indexed")
     
     return {
         "blob_id": blob_id,

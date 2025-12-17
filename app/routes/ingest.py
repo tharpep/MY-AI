@@ -1,10 +1,13 @@
 """Document Ingestion API routes - Ingest documents into RAG system"""
 
+import logging
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -126,12 +129,14 @@ async def upload_document(file: UploadFile) -> Dict[str, Any]:
     
     # Generate request ID for tracing
     request_id = f"req_{uuid.uuid4().hex[:12]}"
+    logger.info(f"[Ingest] Upload request received: {file.filename} (request_id={request_id})")
     
     try:
         # Validate file type
         filename = file.filename or "unknown"
         parser = DocumentParser()
         if not parser.supports(Path(filename)):
+            logger.warning(f"[Ingest] Unsupported file type: {filename}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -146,14 +151,17 @@ async def upload_document(file: UploadFile) -> Dict[str, Any]:
         
         # Read file content
         content = await file.read()
+        logger.info(f"[Ingest] File read: {filename} ({len(content)} bytes)")
         
         # Save to blob storage
         storage = get_blob_storage()
         blob_id = storage.save(content, filename)
+        logger.info(f"[Ingest] Saved to blob storage: {blob_id}")
         
         # Enqueue for processing
         queue = await get_redis_queue()
         job_id = await queue.enqueue('process_document', blob_id)
+        logger.info(f"[Ingest] Job enqueued: job_id={job_id}, blob_id={blob_id}")
         
         return {
             "job_id": job_id,
