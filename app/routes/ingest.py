@@ -165,7 +165,34 @@ async def upload_document(file: UploadFile) -> Dict[str, Any]:
         
     except HTTPException:
         raise
+    except ConnectionError as e:
+        # Redis not available - graceful error
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": {
+                    "message": "Queue service unavailable. Redis may not be running.",
+                    "type": "service_unavailable",
+                    "code": "queue_unavailable"
+                },
+                "request_id": request_id
+            }
+        )
     except Exception as e:
+        # Check if it's a Redis connection issue
+        error_str = str(e).lower()
+        if "redis" in error_str or "connection" in error_str or "refused" in error_str:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "error": {
+                        "message": "Queue service unavailable. Please try again later.",
+                        "type": "service_unavailable",
+                        "code": "queue_unavailable"
+                    },
+                    "request_id": request_id
+                }
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={

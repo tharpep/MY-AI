@@ -1,24 +1,58 @@
-# Docker Compose for local development
-version: '3.8'
+# Docker Compose - Full Application Stack
+# Run: docker compose up -d (all services)
+# Run: docker compose up redis -d (Redis only for local dev)
 
 services:
-  personal-ai:
+  # FastAPI Application
+  api:
     build: .
     ports:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app
+      - REDIS_HOST=redis
     volumes:
       - .:/app
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
     command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-  
+
+  # ARQ Worker for background jobs
+  worker:
+    build: .
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_HOST=redis
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: poetry run python -m arq rag.workers.WorkerSettings
+
+  # Redis for job queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Ollama for local LLM
   ollama:
     image: ollama/ollama:latest
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-  
+
+  # Qdrant for vector storage
   qdrant:
     image: qdrant/qdrant:latest
     ports:
@@ -29,9 +63,7 @@ services:
     environment:
       - QDRANT__SERVICE__HTTP_PORT=6333
       - QDRANT__SERVICE__GRPC_PORT=6334
-  
-  # Uncomment as needed during development
-  
+  # PostgreSQL (uncomment when needed)
   # postgres:
   #   image: postgres:15
   #   environment:
@@ -42,12 +74,6 @@ services:
   #     - "5432:5432"
   #   volumes:
   #     - postgres_data:/var/lib/postgresql/data
-  
-  # redis:
-  #   image: redis:7-alpine
-  #   ports:
-  #     - "6379:6379"
 
 volumes:
-  ollama_data:
-  # postgres_data:
+  ollama_data: # postgres_data:

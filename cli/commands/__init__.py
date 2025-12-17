@@ -6,6 +6,7 @@ from .config import config
 from .chat import chat
 from .query import query
 from .ingest import ingest
+from .serve import serve
 
-__all__ = ["setup", "test", "demo", "config", "chat", "query", "ingest"]
+__all__ = ["setup", "test", "demo", "config", "chat", "query", "ingest", "serve"]
 
