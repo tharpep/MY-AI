@@ -177,3 +177,159 @@ async def upload_document(file: UploadFile) -> Dict[str, Any]:
                 "request_id": request_id
             }
         )
+
+
+@router.get("/ingest/jobs/{job_id}")
+async def get_job_status(job_id: str) -> Dict[str, Any]:
+    """
+    Get the status of an ingestion job.
+    
+    Args:
+        job_id: The job identifier returned from upload
+        
+    Returns:
+        Dictionary with job status details
+    """
+    from core.queue import get_redis_queue
+    
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    try:
+        queue = await get_redis_queue()
+        job_status = await queue.get_job_status(job_id)
+        
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error": {
+                        "message": f"Job not found: {job_id}",
+                        "type": "not_found_error",
+                        "code": "job_not_found"
+                    },
+                    "request_id": request_id
+                }
+            )
+        
+        return {
+            "job_id": job_status.job_id,
+            "status": job_status.status,
+            "created_at": job_status.created_at,
+            "completed_at": job_status.completed_at,
+            "error": job_status.error,
+            "request_id": request_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "message": f"Failed to get job status: {str(e)}",
+                    "type": "internal_error",
+                    "code": "server_error"
+                },
+                "request_id": request_id
+            }
+        )
+
+
+@router.get("/ingest/blobs")
+async def list_blobs() -> Dict[str, Any]:
+    """
+    List all staged blobs in storage.
+    
+    Returns:
+        Dictionary with list of blob info
+    """
+    from core.file_storage import get_blob_storage
+    
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    try:
+        storage = get_blob_storage()
+        blobs = storage.list()
+        
+        return {
+            "blobs": [
+                {
+                    "blob_id": b.blob_id,
+                    "original_filename": b.original_filename,
+                    "file_extension": b.file_extension,
+                    "size_bytes": b.size_bytes,
+                    "created_at": b.created_at
+                }
+                for b in blobs
+            ],
+            "count": len(blobs),
+            "request_id": request_id
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "message": f"Failed to list blobs: {str(e)}",
+                    "type": "internal_error",
+                    "code": "server_error"
+                },
+                "request_id": request_id
+            }
+        )
+
+
+@router.delete("/ingest/blobs/{blob_id}")
+async def delete_blob(blob_id: str) -> Dict[str, Any]:
+    """
+    Delete a blob from storage.
+    
+    Args:
+        blob_id: The blob identifier
+        
+    Returns:
+        Dictionary confirming deletion
+    """
+    from core.file_storage import get_blob_storage
+    
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    try:
+        storage = get_blob_storage()
+        deleted = storage.delete(blob_id)
+        
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error": {
+                        "message": f"Blob not found: {blob_id}",
+                        "type": "not_found_error",
+                        "code": "blob_not_found"
+                    },
+                    "request_id": request_id
+                }
+            )
+        
+        return {
+            "deleted": True,
+            "blob_id": blob_id,
+            "request_id": request_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "message": f"Failed to delete blob: {str(e)}",
+                    "type": "internal_error",
+                    "code": "server_error"
+                },
+                "request_id": request_id
+            }
+        )
