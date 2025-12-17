@@ -194,11 +194,19 @@ def serve(
         # Start worker if requested and Redis is available
         if worker:
             typer.echo("[Startup] Starting Redis worker...")
+            # Don't suppress output so we can see errors
             worker_proc = subprocess.Popen(
                 [sys.executable, "-m", "arq", "rag.workers.WorkerSettings"],
+                # Inherit stdout/stderr so worker output is visible
             )
             processes.append(worker_proc)
-            typer.echo(f"[Startup] Worker started (PID: {worker_proc.pid})")
+            
+            # Give worker a moment to start and check if it crashed
+            time.sleep(1)
+            if worker_proc.poll() is not None:
+                typer.echo(f"[Startup] Worker exited immediately with code: {worker_proc.returncode}", err=True)
+            else:
+                typer.echo(f"[Startup] Worker started (PID: {worker_proc.pid})")
         
         # Build uvicorn command - use sys.executable to ensure correct Python
         uvicorn_cmd = [

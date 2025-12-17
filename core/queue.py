@@ -74,31 +74,46 @@ class RedisQueue:
         Returns:
             JobStatus or None if not found
         """
-        pool = await self.get_pool()
-        job = Job(job_id, pool)
-        
-        status = await job.status()
-        info = await job.info()
-        
-        if info is None:
-            return None
-        
-        # Map arq status to our status
-        status_map = {
-            'deferred': 'queued',
-            'queued': 'queued', 
-            'in_progress': 'processing',
-            'complete': 'completed',
-            'not_found': 'not_found',
-        }
-        
-        return JobStatus(
-            job_id=job_id,
-            status=status_map.get(str(status), 'unknown'),
-            created_at=info.enqueue_time.isoformat() if info.enqueue_time else '',
-            completed_at=info.finish_time.isoformat() if info.finish_time else None,
-            error=str(info.result) if status == 'complete' and isinstance(info.result, Exception) else None
-        )
+        try:
+            pool = await self.get_pool()
+            job = Job(job_id, pool)
+            
+            status = await job.status()
+            info = await job.info()
+            
+            if info is None:
+                return None
+            
+            # Map arq JobStatus enum to our status strings
+            status_name = status.name if hasattr(status, 'name') else str(status)
+            status_map = {
+                'deferred': 'queued',
+                'queued': 'queued', 
+                'in_progress': 'processing',
+                'complete': 'completed',
+                'not_found': 'not_found',
+            }
+            
+            # Safely get attributes from JobDef (different versions may have different attrs)
+            enqueue_time = getattr(info, 'enqueue_time', None)
+            # JobDef doesn't have finish_time, we check if result exists for completion
+            
+            # Check if job failed (result is exception)
+            error_msg = None
+            result = getattr(info, 'result', None)
+            if result is not None and isinstance(result, Exception):
+                error_msg = str(result)
+            
+            return JobStatus(
+                job_id=job_id,
+                status=status_map.get(status_name, 'unknown'),
+                created_at=enqueue_time.isoformat() if enqueue_time else '',
+                completed_at=None,  # JobDef doesn't track this
+                error=error_msg
+            )
+        except Exception as e:
+            logger.error(f"Error getting job status for {job_id}: {e}")
+            raise
     
     async def close(self):
         """Close the Redis connection pool"""

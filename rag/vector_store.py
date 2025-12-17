@@ -34,7 +34,6 @@ class VectorStore:
                 # Test connection
                 self.client.get_collections()
                 logger.info(f"Connected to Qdrant server at {qdrant_host}:{qdrant_port}")
-                print(f"Connected to Qdrant server at {qdrant_host}:{qdrant_port}")
             except Exception as e:
                 error_str = str(e).lower()
                 is_connection_error = any(term in error_str for term in ["connection", "refused", "timeout", "unreachable"])
@@ -42,8 +41,6 @@ class VectorStore:
                 if is_connection_error:
                     logger.warning(f"Qdrant server not available at {qdrant_host}:{qdrant_port}: {e}")
                     logger.warning("Falling back to in-memory storage. Start Qdrant with: docker compose up qdrant -d")
-                    print(f"Qdrant server not available. Using in-memory storage.")
-                    print(f"  To enable persistence: docker compose up qdrant -d")
                     self.client = QdrantClient(":memory:")
                     self.use_persistent = False
                 else:
@@ -51,7 +48,7 @@ class VectorStore:
                     raise RuntimeError(f"Failed to initialize Qdrant client: {e}") from e
         else:
             self.client = QdrantClient(":memory:")
-            print("Using in-memory Qdrant storage")
+            logger.info("Using in-memory Qdrant storage")
     
     def setup_collection(self, collection_name: str, embedding_dim: int) -> bool:
         """
