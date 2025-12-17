@@ -29,6 +29,13 @@ transformers = ">=4.30.0"
 # Additional utilities
 python-dotenv = ">=1.0.0"
 typer = {extras = ["all"], version = ">=0.9.0"}
+# Document parsing
+python-multipart = ">=0.0.6"
+pypdf2 = ">=3.0.0"
+python-docx = ">=1.1.0"
+# Job queue
+redis = ">=5.0.0"
+arq = ">=0.26.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0"
