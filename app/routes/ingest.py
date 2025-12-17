@@ -355,3 +355,42 @@ async def delete_blob(blob_id: str) -> Dict[str, Any]:
                 "request_id": request_id
             }
         )
+
+
+@router.get("/ingest/indexed")
+async def get_indexed_stats() -> Dict[str, Any]:
+    """
+    Get statistics about indexed documents in Qdrant.
+    
+    Returns:
+        Dictionary with collection info and document counts
+    """
+    from rag.rag_setup import BasicRAG
+    
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    try:
+        rag = BasicRAG()
+        stats = rag.get_collection_stats()
+        
+        return {
+            "collection": stats.get("collection_name", "unknown"),
+            "total_documents": stats.get("document_count", 0),
+            "vector_dimension": stats.get("vector_dimension", 0),
+            "storage_type": "server" if rag.vector_store.use_persistent else "in-memory",
+            "request_id": request_id
+        }
+        
+    except Exception as e:
+        logger.error(f"[Ingest] Failed to get indexed stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "message": f"Failed to get indexed stats: {str(e)}",
+                    "type": "internal_error",
+                    "code": "server_error"
+                },
+                "request_id": request_id
+            }
+        )
