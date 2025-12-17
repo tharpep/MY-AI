@@ -50,7 +50,7 @@ class DocumentRetriever:
         return embedding.tolist()
     
     def create_points(self, documents: List[str], embeddings: List[List[float]], 
-                     start_doc_id: int = 0) -> List[PointStruct]:
+                     start_doc_id: int = 0, metadata: dict = None) -> List[PointStruct]:
         """
         Create Qdrant points from documents and embeddings
         
@@ -58,20 +58,26 @@ class DocumentRetriever:
             documents: List of text documents
             embeddings: List of embedding vectors
             start_doc_id: Starting document ID for indexing
+            metadata: Optional metadata to include in each point (e.g., blob_id)
             
         Returns:
             List of Qdrant PointStruct objects
         """
         points = []
         for idx, (doc, embedding) in enumerate(zip(documents, embeddings)):
+            payload = {
+                "text": doc, 
+                "doc_id": start_doc_id + idx,
+                "chunk_id": idx
+            }
+            # Add any extra metadata (like blob_id)
+            if metadata:
+                payload.update(metadata)
+            
             point = PointStruct(
                 id=str(uuid.uuid4()),
                 vector=embedding,
-                payload={
-                    "text": doc, 
-                    "doc_id": start_doc_id + idx,
-                    "chunk_id": idx
-                }
+                payload=payload
             )
             points.append(point)
         return points

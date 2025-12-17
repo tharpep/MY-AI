@@ -393,3 +393,148 @@ async def get_indexed_stats() -> Dict[str, Any]:
                 "request_id": request_id
             }
         )
+
+
+@router.delete("/ingest/indexed")
+async def clear_all_indexed() -> Dict[str, Any]:
+    """
+    Clear all indexed documents from Qdrant.
+    
+    Returns:
+        Dictionary with clear result
+    """
+    from rag.rag_setup import get_rag
+    
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    try:
+        rag = get_rag()
+        result = rag.clear_collection()
+        
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error": {
+                        "message": result["error"],
+                        "type": "internal_error",
+                        "code": "server_error"
+                    },
+                    "request_id": request_id
+                }
+            )
+        
+        return {
+            "cleared": True,
+            "message": result.get("message", "Collection cleared"),
+            "request_id": request_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Ingest] Failed to clear indexed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "message": f"Failed to clear indexed: {str(e)}",
+                    "type": "internal_error",
+                    "code": "server_error"
+                },
+                "request_id": request_id
+            }
+        )
+
+
+@router.get("/ingest/indexed/files")
+async def list_indexed_files() -> Dict[str, Any]:
+    """
+    List all indexed files with their chunk counts.
+    
+    Returns:
+        Dictionary with list of indexed files
+    """
+    from rag.rag_setup import get_rag
+    
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    try:
+        rag = get_rag()
+        result = rag.get_indexed_files()
+        
+        return {
+            "files": result.get("files", []),
+            "total_files": result.get("total_files", 0),
+            "request_id": request_id
+        }
+        
+    except Exception as e:
+        logger.error(f"[Ingest] Failed to list indexed files: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "message": f"Failed to list indexed files: {str(e)}",
+                    "type": "internal_error",
+                    "code": "server_error"
+                },
+                "request_id": request_id
+            }
+        )
+
+
+@router.delete("/ingest/indexed/{blob_id}")
+async def delete_indexed_file(blob_id: str) -> Dict[str, Any]:
+    """
+    Delete all indexed chunks for a specific file (blob_id).
+    
+    Args:
+        blob_id: The blob identifier to delete
+        
+    Returns:
+        Dictionary with deletion result
+    """
+    from rag.rag_setup import get_rag
+    
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    try:
+        rag = get_rag()
+        result = rag.delete_by_blob_id(blob_id)
+        
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error": {
+                        "message": result["error"],
+                        "type": "internal_error",
+                        "code": "server_error"
+                    },
+                    "request_id": request_id
+                }
+            )
+        
+        return {
+            "deleted": True,
+            "blob_id": blob_id,
+            "message": result.get("message", "Chunks deleted"),
+            "request_id": request_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Ingest] Failed to delete indexed file {blob_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "message": f"Failed to delete indexed file: {str(e)}",
+                    "type": "internal_error",
+                    "code": "server_error"
+                },
+                "request_id": request_id
+            }
+        )

@@ -67,9 +67,13 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         chunks = ingester._chunk_text(processed_text, max_chunk_size=1000)
         logger.info(f"[Worker] Created {len(chunks)} chunks")
         
-        # Step 6: Add to vector database (Qdrant)
+        # Step 6: Add to vector database (Qdrant) with blob tracking metadata
         logger.info(f"[Worker] Adding {len(chunks)} chunks to Qdrant...")
-        count = rag.add_documents(chunks)
+        metadata = {
+            "blob_id": blob_id,
+            "original_filename": parsed.original_filename
+        }
+        count = rag.add_documents(chunks, metadata=metadata)
         logger.info(f"[Worker] Indexed {count} chunks to Qdrant")
         
         logger.info(f"[Worker] COMPLETE: {blob_id} -> {count} chunks indexed")

@@ -39,12 +39,13 @@ class BasicRAG:
         if not success:
             raise Exception(f"Failed to setup collection: {self.collection_name}")
     
-    def add_documents(self, documents):
+    def add_documents(self, documents, metadata: dict = None):
         """
         Add documents to the vector database
         
         Args:
             documents: List of text documents to index
+            metadata: Optional metadata to store with each chunk (e.g., {"blob_id": "blob_xxx"})
             
         Returns:
             Number of documents added
@@ -52,8 +53,8 @@ class BasicRAG:
         # Create embeddings
         embeddings = self.retriever.encode_documents(documents)
         
-        # Create points for vector store
-        points = self.retriever.create_points(documents, embeddings)
+        # Create points for vector store (includes metadata like blob_id)
+        points = self.retriever.create_points(documents, embeddings, metadata=metadata)
         
         # Add to vector store
         return self.vector_store.add_points(self.collection_name, points)
@@ -223,6 +224,83 @@ class BasicRAG:
             return {"success": True, "message": f"Cleared collection {self.collection_name}"}
         except Exception as e:
             return {"error": f"Failed to clear collection: {str(e)}"}
+    
+    def get_indexed_files(self) -> dict:
+        """
+        Get list of indexed files (blob_ids) with their chunk counts.
+        
+        Returns:
+            Dictionary with list of indexed files and their stats
+        """
+        try:
+            # Query all points with scroll to get unique blob_ids
+            from qdrant_client.models import Filter, FieldCondition, MatchValue, ScrollRequest
+            
+            # Get all points (scrolling through)
+            blob_counts = {}
+            offset = None
+            limit = 100
+            
+            while True:
+                result = self.vector_store.client.scroll(
+                    collection_name=self.collection_name,
+                    limit=limit,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False
+                )
+                
+                points, offset = result
+                if not points:
+                    break
+                    
+                for point in points:
+                    blob_id = point.payload.get("blob_id")
+                    filename = point.payload.get("original_filename", "unknown")
+                    if blob_id:
+                        if blob_id not in blob_counts:
+                            blob_counts[blob_id] = {"blob_id": blob_id, "filename": filename, "chunk_count": 0}
+                        blob_counts[blob_id]["chunk_count"] += 1
+                
+                if offset is None:
+                    break
+            
+            return {
+                "files": list(blob_counts.values()),
+                "total_files": len(blob_counts)
+            }
+        except Exception as e:
+            return {"error": f"Failed to get indexed files: {str(e)}", "files": [], "total_files": 0}
+    
+    def delete_by_blob_id(self, blob_id: str) -> dict:
+        """
+        Delete all chunks associated with a specific blob_id.
+        
+        Args:
+            blob_id: The blob identifier to delete
+            
+        Returns:
+            Dictionary with deletion result
+        """
+        try:
+            from qdrant_client.models import Filter, FieldCondition, MatchValue
+            
+            # Delete all points with matching blob_id
+            self.vector_store.client.delete(
+                collection_name=self.collection_name,
+                points_selector=Filter(
+                    must=[
+                        FieldCondition(
+                            key="blob_id",
+                            match=MatchValue(value=blob_id)
+                        )
+                    ]
+                )
+            )
+            
+            return {"success": True, "message": f"Deleted all chunks for blob: {blob_id}"}
+        except Exception as e:
+            return {"error": f"Failed to delete chunks for {blob_id}: {str(e)}"}
 
 
 # Singleton instance
