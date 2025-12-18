@@ -4,12 +4,12 @@ A privacy-focused personal AI assistant built for local-first execution with opt
 
 ## Key Features
 
-- ** Privacy-Centric**: Data stays local by default. No external data sharing without explicit intent.
-- ** Local Intelligence**: Powered by Ollama/vLLM for primary processing, ensuring low latency and offline capability.
-- ** RAG Capabilities**: Search and cite from your personal document corpus with built-in document ingestion and vector storage.
-- ** OpenAI-Compatible API**: Drop-in replacement for OpenAI endpoints (`/v1/chat/completions`), supporting any compatible client.
-- ** Extensible Tool System**: Modular architecture for integrating read-only tools and services.
-- ** Detailed Monitoring**: SQLite-backed request logging for debugging and performance tracking.
+- **Privacy-Centric**: Data stays local by default. No external data sharing without explicit intent.
+- **Local Intelligence**: Powered by Ollama/vLLM for primary processing, ensuring low latency and offline capability.
+- **RAG Capabilities**: Search and cite from your personal document corpus with built-in document ingestion and vector storage.
+- **OpenAI-Compatible API**: Drop-in replacement for OpenAI endpoints (`/v1/chat/completions`), supporting any compatible client.
+- **Extensible Tool System**: Modular architecture for integrating read-only tools and services.
+- **Detailed Monitoring**: SQLite-backed request logging for debugging and performance tracking.
 
 ## Getting Started
 
