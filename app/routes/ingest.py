@@ -512,16 +512,35 @@ async def get_indexed_stats() -> Dict[str, Any]:
 
 
 @router.delete("/ingest/indexed")
-async def clear_all_indexed() -> Dict[str, Any]:
+async def clear_all_indexed(
+    confirm: bool = Query(default=False, description="Confirm deletion of ALL indexed documents")
+) -> Dict[str, Any]:
     """
     Clear all indexed documents from Qdrant.
+    
+    Args:
+        confirm: Must be set to true to execute deletion
     
     Returns:
         Dictionary with clear result
     """
+    from fastapi import Query
     from rag.rag_setup import get_rag
     
     request_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    if not confirm:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": {
+                    "message": "Deletion requires confirmation. Set ?confirm=true",
+                    "type": "invalid_request_error",
+                    "code": "missing_confirmation"
+                },
+                "request_id": request_id
+            }
+        )
     
     try:
         rag = get_rag()
