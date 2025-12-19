@@ -1,0 +1,109 @@
+"""
+Profile Manager
+Handles loading and saving user profile data (single-user mode).
+Stores profile in a JSON file in the data directory.
+"""
+
+import json
+import logging
+import os
+from pathlib import Path
+from typing import Dict, Any, Optional
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+# Default profile template
+DEFAULT_PROFILE = {
+    "name": "User",
+    "role": "Owner",
+    "preferences": {
+        "brevity": "normal",
+        "tone": "helpful",
+        "tech_stack": []
+    },
+    "bio": "I am the owner of this AI assistant."
+}
+
+class UserProfile(BaseModel):
+    """User profile schema."""
+    name: str = "User"
+    role: str = "Owner"
+    preferences: Dict[str, Any] = {}
+    bio: str = ""
+    
+    class Config:
+        extra = "allow"  # Allow additional fields
+
+class ProfileManager:
+    """
+    Manages the single-user profile.
+    Reads/writes to data/user_profile.json.
+    """
+    
+    def __init__(self, data_dir: str = "./data"):
+        self.data_dir = Path(data_dir)
+        self.profile_path = self.data_dir / "user_profile.json"
+        self._ensure_data_dir()
+    
+    def _ensure_data_dir(self):
+        """Ensure data directory exists."""
+        if not self.data_dir.exists():
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            
+    def get_profile(self) -> Dict[str, Any]:
+        """
+        Get the current user profile.
+        Returns default profile if file doesn't exist.
+        """
+        if not self.profile_path.exists():
+            return DEFAULT_PROFILE.copy()
+            
+        try:
+            with open(self.profile_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load profile: {e}")
+            return DEFAULT_PROFILE.copy()
+    
+    def update_profile(self, data: Dict[str, Any]) -> UserProfile:
+        """
+        Update the user profile.
+        Merges new data with existing data.
+        """
+        current = self.get_profile()
+        
+        # Merge dictionaries (shallow merge)
+        # For deeper merges, we might need a utility, but this is fine for now
+        updated = {**current, **data}
+        
+        # Deep merge preferences if provided
+        if "preferences" in data and "preferences" in current:
+            updated["preferences"] = {**current["preferences"], **data["preferences"]}
+        
+        try:
+            # Validate with Pydantic
+            profile = UserProfile(**updated)
+            
+            # Save to file
+            with open(self.profile_path, "w", encoding="utf-8") as f:
+                json.dump(profile.model_dump(), f, indent=2)
+            
+            logger.info("User profile updated")
+            return profile
+            
+        except Exception as e:
+            logger.error(f"Failed to save profile: {e}")
+            # Return current if save failed, or raise?
+            # For now try to return what we have in memory
+            return UserProfile(**updated)
+
+# Global instance
+_profile_manager = None
+
+def get_profile_manager() -> ProfileManager:
+    """Get the global ProfileManager instance."""
+    global _profile_manager
+    if _profile_manager is None:
+        _profile_manager = ProfileManager()
+    return _profile_manager

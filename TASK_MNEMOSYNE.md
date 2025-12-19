@@ -43,9 +43,9 @@
   - [x] **4A. Memory Endpoints**
     - [x] Create `DELETE /v1/memory` with `?confirm=true` check
     - [x] Create `GET /v1/memory/sessions` listing
-  - [ ] **4B. Profile & Ingest**
-    - [ ] Create `GET/PATCH /v1/profile`
-    - [ ] Create `POST /v1/ingest/file/{filename}` (Manual blob ingest)
+  - [x] **4B. Profile & Ingest**
+    - [x] Create `GET/PATCH /v1/profile`
+    - [x] Create `POST /v1/ingest/file/{filename}` (Manual blob ingest)
 
 - [ ] **Phase 5: Verification & Ingest Library**
   - [ ] **5A. Ingest Library**

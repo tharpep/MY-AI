@@ -201,6 +201,122 @@ async def upload_document(file: UploadFile) -> Dict[str, Any]:
         )
 
 
+
+@router.post("/ingest/file/{filename}")
+async def ingest_manual_file(filename: str) -> Dict[str, Any]:
+    """
+    Manually trigger ingestion for a file.
+    
+    Can process:
+    1. A raw file manually placed in the library_blob folder (will be imported/adopted)
+    2. An existing blob_id (re-ingest)
+    3. An existing file by original filename (re-ingest)
+    
+    Args:
+        filename: Name of file or blob_id to ingest
+        
+    Returns:
+        Job queue status
+    """
+    from core.file_storage import get_blob_storage
+    from core.queue import get_redis_queue
+    
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    logger.info(f"[Ingest] Manual ingest request: {filename} ({request_id})")
+    
+    try:
+        storage = get_blob_storage()
+        blob_id = None
+        
+        # Strategy 1: Check if it's a valid blob_id directly
+        if storage.get_info(filename):
+            blob_id = filename
+            logger.info(f"[Ingest] Found existing blob_id: {blob_id}")
+            
+        # Strategy 2: Check if it's a raw file in the directory (adopt it)
+        elif (storage.storage_path / filename).exists() and (storage.storage_path / filename).is_file():
+            raw_path = storage.storage_path / filename
+            logger.info(f"[Ingest] Found raw file, adopting: {filename}")
+            
+            # Read and save as proper blob
+            content = raw_path.read_bytes()
+            blob_id = storage.save(content, filename)
+            
+            # Delete original raw file to prevent duplicates/confusion
+            try:
+                raw_path.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to delete adopted file {filename}: {e}")
+                
+        # Strategy 3: Search manifests for original_filename
+        else:
+            blobs = storage.list()
+            # Find matches, sort by recent first
+            matches = [b for b in blobs if b.original_filename == filename]
+            if matches:
+                # Use most recent
+                matches.sort(key=lambda x: x.created_at, reverse=True)
+                blob_id = matches[0].blob_id
+                logger.info(f"[Ingest] Found blob by filename: {filename} -> {blob_id}")
+        
+        # Check if we found anything
+        if not blob_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error": {
+                        "message": f"File not found: {filename}. Not in storage or index.",
+                        "type": "not_found_error",
+                        "code": "file_not_found"
+                    },
+                    "request_id": request_id
+                }
+            )
+            
+        # Enqueue for processing
+        queue = await get_redis_queue()
+        job_id = await queue.enqueue('process_document', blob_id)
+        logger.info(f"[Ingest] Job enqueued: job_id={job_id}, blob_id={blob_id}")
+        
+        return {
+            "job_id": job_id,
+            "blob_id": blob_id,
+            "filename": filename,
+            "status": "queued",
+            "request_id": request_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Check for Redis connection issues (common in dev)
+        if "redis" in str(e).lower() or "connection" in str(e).lower():
+             raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "error": {
+                        "message": "Queue service unavailable. Redis may not be running.",
+                        "type": "service_unavailable",
+                        "code": "queue_unavailable"
+                    },
+                    "request_id": request_id
+                }
+            )
+            
+        logger.error(f"[Ingest] Manual ingest failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": {
+                    "message": f"Ingestion failed: {str(e)}",
+                    "type": "internal_error",
+                    "code": "server_error"
+                },
+                "request_id": request_id
+            }
+        )
+
+
 @router.get("/ingest/jobs/{job_id}")
 async def get_job_status(job_id: str) -> Dict[str, Any]:
     """
