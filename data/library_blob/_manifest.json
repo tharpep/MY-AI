@@ -1,10 +1,18 @@
 {
-  "blob_8968231b5d2c": {
-    "blob_id": "blob_8968231b5d2c",
-    "original_filename": "CLAUDE.md.txt",
-    "file_extension": ".txt",
-    "size_bytes": 2070,
-    "created_at": "2025-12-19T01:55:23.833120",
-    "storage_path": "data\\library_blob\\blob_8968231b5d2c.txt"
+  "blob_575fb068aeaf": {
+    "blob_id": "blob_575fb068aeaf",
+    "original_filename": "Phase 2 - Final deliverable - report template.pdf",
+    "file_extension": ".pdf",
+    "size_bytes": 1736031,
+    "created_at": "2025-12-19T01:59:45.895141",
+    "storage_path": "data\\library_blob\\blob_575fb068aeaf.pdf"
+  },
+  "blob_6c4e8ef7bfde": {
+    "blob_id": "blob_6c4e8ef7bfde",
+    "original_filename": "Project - Phase 2.10 - Security Analysis - template (1).pdf",
+    "file_extension": ".pdf",
+    "size_bytes": 640650,
+    "created_at": "2025-12-19T02:06:40.952754",
+    "storage_path": "data\\library_blob\\blob_6c4e8ef7bfde.pdf"
   }
 }

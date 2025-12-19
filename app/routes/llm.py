@@ -259,7 +259,8 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
             logging.getLogger(__name__).error(f"Failed to log request: {e}")
         
         # Convert AIGateway response to OpenAI format
-        return {
+        # Include RAG metadata for dev/admin page
+        result = {
             "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
             "object": "chat.completion",
             "created": int(__import__("time").time()),
@@ -277,6 +278,34 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
             },
             "request_id": request_id
         }
+        
+        # Add RAG context metadata (for dev/admin debugging)
+        if library_results or message_result.journal_results:
+            result["rag_context"] = {
+                "library": {
+                    "enabled": bool(library_results),
+                    "doc_count": len(library_results) if library_results else 0,
+                    "documents": [
+                        {
+                            "text": doc_text[:200] + "..." if len(doc_text) > 200 else doc_text,  # Truncate for display
+                            "similarity": float(score),
+                            "full_text": doc_text  # Include full text for detailed view
+                        }
+                        for doc_text, score in (library_results or [])
+                    ] if library_results else [],
+                    "context_text": message_result.library_context_text[:500] + "..." if message_result.library_context_text and len(message_result.library_context_text) > 500 else message_result.library_context_text
+                },
+                "journal": {
+                    "enabled": bool(message_result.journal_results),
+                    "entry_count": len(message_result.journal_results) if message_result.journal_results else 0,
+                    "entries": message_result.journal_results or [],
+                    "context_text": message_result.journal_context_text[:500] + "..." if message_result.journal_context_text and len(message_result.journal_context_text) > 500 else message_result.journal_context_text
+                },
+                "prep_time_ms": prep_time,
+                "llm_time_ms": llm_time
+            }
+        
+        return result
         
     except HTTPException as e:
         # Log error request
