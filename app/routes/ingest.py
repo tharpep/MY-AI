@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 
 logger = logging.getLogger(__name__)
 
@@ -524,7 +524,6 @@ async def clear_all_indexed(
     Returns:
         Dictionary with clear result
     """
-    from fastapi import Query
     from rag.rag_setup import get_rag
     
     request_id = f"req_{uuid.uuid4().hex[:12]}"
