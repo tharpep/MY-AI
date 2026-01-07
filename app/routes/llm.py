@@ -293,7 +293,7 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
             user_message=user_message,
             use_library=request.use_library,
             use_journal=request.use_journal,
-            session_id=None,
+            session_id=request.session_id,  # Pass session_id for potential other uses
             library_top_k=request.library_top_k,
             journal_top_k=request.journal_top_k,
             similarity_threshold=None,  # Use config default

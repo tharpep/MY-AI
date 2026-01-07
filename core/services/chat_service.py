@@ -443,7 +443,7 @@ USER'S ACTUAL QUESTION (ANSWER THIS):
                 query=query,
                 top_k=limit,
                 similarity_threshold=similarity_threshold,
-                session_id=session_id
+                session_id=None  # Always search all sessions, not just current
             )
             
             if not results:

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from llm.gateway import AIGateway
 
-from .routes import health, llm, query, ingest, config, logs, memory, profile
+from .routes import health, llm, query, ingest, config, memory, logs, profile
 from .db import init_database, log_request
 
 # Configure logging
@@ -109,35 +109,6 @@ async def lifespan(app: FastAPI):
             from rag.rag_setup import get_rag
             rag_instance = get_rag()
             logger.info("RAG system initialized and ready")
-            
-            # Start background worker for ingestion
-            try:
-                import asyncio
-                from arq.worker import Worker
-                from rag.workers import WorkerSettings
-                
-                # Run worker in background task
-                logger.info("Starting background ingestion worker...")
-                
-                # Instantiate worker directly to avoid loop conflict
-                # WorkerSettings doesn't support direct init in all versions, so we unpack
-                worker = Worker(
-                    functions=WorkerSettings.functions,
-                    redis_settings=WorkerSettings.redis_settings,
-                    max_jobs=WorkerSettings.max_jobs,
-                    job_timeout=WorkerSettings.job_timeout
-                )
-                
-                # Store worker in app state for cleanup
-                app.state.worker = worker
-                
-                async def start_worker():
-                    await worker.async_run()
-                
-                app.state.worker_task = asyncio.create_task(start_worker())
-                logger.info("Background worker started")
-            except Exception as e:
-                logger.error(f"Failed to start background worker: {e}")
         else:
             logger.info("RAG is disabled in config")
     except Exception as e:
@@ -167,19 +138,6 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down Personal AI Assistant API")
-    
-    # Stop background worker
-    if hasattr(app.state, "worker") and app.state.worker:
-        logger.info("Stopping background worker...")
-        await app.state.worker.close()
-        logger.info("Background worker stopped")
-        
-    if hasattr(app.state, "worker_task") and app.state.worker_task:
-        try:
-            await app.state.worker_task
-        except asyncio.CancelledError:
-            pass
-    
     if gateway:
         try:
             await gateway.__aexit__(None, None, None)
@@ -196,9 +154,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
     
+    # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:3001"],
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -212,9 +171,9 @@ def create_app() -> FastAPI:
     app.include_router(llm.router, prefix="/v1", tags=["llm"])
     app.include_router(query.router, prefix="/v1", tags=["rag"])
     app.include_router(ingest.router, prefix="/v1", tags=["ingest"])
-    app.include_router(config.router, tags=["config"])
-    app.include_router(logs.router, tags=["logs"])
+    app.include_router(config.router, prefix="/v1", tags=["config"])
     app.include_router(memory.router, prefix="/v1", tags=["memory"])
+    app.include_router(logs.router, prefix="/v1", tags=["logs"])
     app.include_router(profile.router, prefix="/v1", tags=["profile"])
     
     return app

@@ -14,7 +14,7 @@ from ..db import get_recent_requests, get_request_by_id
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1")
+router = APIRouter()
 
 
 @router.get("/logs")

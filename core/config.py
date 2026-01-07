@@ -37,7 +37,7 @@ class AppConfig(BaseSettings):
         description="Default Purdue GenAI Studio model"
     )
     model_ollama: str = Field(
-        default="llama3.2:1b",
+        default="llama3.1:8b",
         description="Default Ollama model (local)"
     )
     
