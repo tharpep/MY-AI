@@ -1,10 +1,4 @@
-"""
-Session Store for Journal Sessions
-Persists session metadata and messages in SQLite for durable storage.
-
-Sessions store chat history locally. Messages are saved in real-time,
-then exported and ingested into RAG on trigger (manual or session switch).
-"""
+"""Session Store for Journal Sessions"""
 
 import sqlite3
 import logging
@@ -15,20 +9,11 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
-# Database file path
 DB_PATH = Path("./data/sessions.db")
 
 
 class SessionStore:
-    """
-    Manages session metadata and messages in SQLite.
-
-    Sessions are identified by session_id (UUID) which matches
-    the session_id stored in Qdrant payloads after ingestion.
-
-    Messages are stored in real-time during chat, separate from
-    RAG ingestion which happens on trigger.
-    """
+    """Manages session metadata and messages in SQLite."""
 
     def __init__(self, db_path: Optional[Path] = None):
         """Initialize session store."""
@@ -37,11 +22,9 @@ class SessionStore:
         self._init_db()
 
     def _init_db(self) -> None:
-        """Create sessions and messages tables if they don't exist."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
-            # Sessions table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS sessions (
                     session_id TEXT PRIMARY KEY,
@@ -57,14 +40,12 @@ class SessionStore:
                 ON sessions(last_activity DESC)
             """)
 
-            # Migration: Add ingested_at column if it doesn't exist
             cursor.execute("PRAGMA table_info(sessions)")
             columns = [col[1] for col in cursor.fetchall()]
             if "ingested_at" not in columns:
                 cursor.execute("ALTER TABLE sessions ADD COLUMN ingested_at TEXT")
                 logger.info("Migrated sessions table: added ingested_at column")
 
-            # Messages table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,7 +70,6 @@ class SessionStore:
     
     @contextmanager
     def _get_connection(self):
-        """Get a database connection with proper cleanup."""
         conn = None
         try:
             conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
@@ -105,24 +85,16 @@ class SessionStore:
                 conn.close()
     
     def upsert_session(self, session_id: str, name: Optional[str] = None) -> None:
-        """
-        Create or update a session.
-        
-        Args:
-            session_id: Unique session identifier
-            name: Optional friendly name for the session
-        """
+        """Create or update a session."""
         now = datetime.utcnow().isoformat()
         
         with self._get_connection() as conn:
             cursor = conn.cursor()
             
-            # Check if session exists
             cursor.execute("SELECT session_id FROM sessions WHERE session_id = ?", (session_id,))
             exists = cursor.fetchone() is not None
             
             if exists:
-                # Update last_activity
                 cursor.execute("""
                     UPDATE sessions SET last_activity = ? WHERE session_id = ?
                 """, (now, session_id))
@@ -131,7 +103,6 @@ class SessionStore:
                         UPDATE sessions SET name = ? WHERE session_id = ?
                     """, (name, session_id))
             else:
-                # Insert new session
                 cursor.execute("""
                     INSERT INTO sessions (session_id, name, created_at, last_activity, message_count)
                     VALUES (?, ?, ?, ?, 0)
@@ -178,19 +149,13 @@ class SessionStore:
             return [dict(row) for row in cursor.fetchall()]
     
     def delete_session(self, session_id: str) -> bool:
-        """Delete a session and all its messages. Returns True if deleted."""
+        """Delete a session and all its messages."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            # Delete messages first (foreign key)
             cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
-            # Delete session
             cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
             conn.commit()
             return cursor.rowcount > 0
-
-    # =========================================================================
-    # Message Methods
-    # =========================================================================
 
     def add_message(
         self,
@@ -199,18 +164,7 @@ class SessionStore:
         content: str,
         timestamp: Optional[str] = None
     ) -> int:
-        """
-        Add a chat message to a session.
-
-        Args:
-            session_id: Session identifier
-            role: Message role ('user' or 'assistant')
-            content: Message content
-            timestamp: Optional timestamp (defaults to now)
-
-        Returns:
-            The message ID
-        """
+        """Add a chat message to a session."""
         if timestamp is None:
             timestamp = datetime.utcnow().isoformat()
 
@@ -229,15 +183,7 @@ class SessionStore:
         return message_id
 
     def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
-        """
-        Get all messages for a session, ordered by timestamp.
-
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            List of message dicts with role, content, timestamp
-        """
+        """Get all messages for a session, ordered by timestamp."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -252,15 +198,7 @@ class SessionStore:
             return [dict(row) for row in cursor.fetchall()]
 
     def get_session_with_messages(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get a session with all its messages.
-
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            Session dict with 'messages' list, or None if not found
-        """
+        """Get a session with all its messages."""
         session = self.get_session(session_id)
         if session is None:
             return None
@@ -269,17 +207,7 @@ class SessionStore:
         return session
 
     def get_first_user_message(self, session_id: str) -> Optional[str]:
-        """
-        Get the first user message content for a session.
-
-        Used for auto-generating session titles.
-
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            First user message content, or None if no user messages
-        """
+        """Get the first user message content for a session."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -295,15 +223,7 @@ class SessionStore:
             return row["content"] if row else None
 
     def delete_messages(self, session_id: str) -> int:
-        """
-        Delete all messages for a session (keeps session metadata).
-
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            Number of messages deleted
-        """
+        """Delete all messages for a session (keeps session metadata)."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -313,18 +233,8 @@ class SessionStore:
             conn.commit()
             return cursor.rowcount
 
-    # =========================================================================
-    # Ingestion Tracking Methods
-    # =========================================================================
-
     def set_ingested_at(self, session_id: str, timestamp: Optional[str] = None) -> None:
-        """
-        Mark a session as ingested into RAG.
-
-        Args:
-            session_id: Session identifier
-            timestamp: Ingestion timestamp (defaults to now)
-        """
+        """Mark a session as ingested into RAG."""
         if timestamp is None:
             timestamp = datetime.utcnow().isoformat()
 
@@ -337,12 +247,7 @@ class SessionStore:
             conn.commit()
 
     def clear_ingested_at(self, session_id: str) -> None:
-        """
-        Clear the ingested_at timestamp (mark as not ingested).
-
-        Args:
-            session_id: Session identifier
-        """
+        """Clear the ingested_at timestamp (mark as not ingested)."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -352,34 +257,19 @@ class SessionStore:
             conn.commit()
 
     def has_new_messages_since_ingest(self, session_id: str) -> bool:
-        """
-        Check if a session has new messages since last ingestion.
-
-        Returns True if:
-        - Session has never been ingested (ingested_at is NULL), OR
-        - Session's last_activity is after ingested_at
-
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            True if session needs (re)ingestion
-        """
+        """Check if a session has new messages since last ingestion."""
         session = self.get_session(session_id)
         if session is None:
             return False
 
-        # No messages = nothing to ingest
         if session.get("message_count", 0) == 0:
             return False
 
         ingested_at = session.get("ingested_at")
 
-        # Never ingested but has messages
         if ingested_at is None:
             return True
 
-        # Compare timestamps
         last_activity = session.get("last_activity")
         if last_activity is None:
             return False
@@ -387,17 +277,7 @@ class SessionStore:
         return last_activity > ingested_at
 
     def get_sessions_needing_ingest(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """
-        Get sessions that have messages but haven't been ingested or have new content.
-
-        Useful for batch ingestion or startup checks.
-
-        Args:
-            limit: Maximum sessions to return
-
-        Returns:
-            List of session dicts needing ingestion
-        """
+        """Get sessions that have messages but haven't been ingested or have new content."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -413,7 +293,6 @@ class SessionStore:
             return [dict(row) for row in cursor.fetchall()]
 
 
-# Singleton instance
 _session_store: Optional[SessionStore] = None
 
 

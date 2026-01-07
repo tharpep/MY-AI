@@ -1,8 +1,4 @@
-"""
-Simple AI Gateway
-Routes requests to AI providers (Purdue GenAI Studio, Local Ollama)
-Designed to be easily extended for additional providers
-"""
+"""Simple AI Gateway"""
 
 import os
 import asyncio
@@ -11,9 +7,7 @@ from .providers import PurdueGenAI, AnthropicClient
 from .local import OllamaClient, OllamaConfig
 from core.config import get_config
 
-# Load environment variables from .env file
 def load_env_file():
-    """Load environment variables from .env file"""
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
     if os.path.exists(env_path):
         with open(env_path, 'r') as f:
@@ -30,20 +24,12 @@ class AIGateway:
     """Simple gateway for AI requests"""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize gateway with configuration
-        
-        Args:
-            config: Dictionary with provider configurations
-                   If None, will try to load from environment variables and config.py
-        """
+        """Initialize gateway with configuration."""
         self.providers = {}
         self.config = get_config()
         self._setup_providers(config or {})
     
     def _setup_providers(self, config: Dict[str, Any]):
-        """Setup available AI providers"""
-        # Setup Anthropic/Claude provider
         if "anthropic" in config:
             api_key = config["anthropic"].get("api_key")
             self.providers["anthropic"] = AnthropicClient(api_key)
@@ -52,7 +38,6 @@ class AIGateway:
         elif os.getenv('CLAUDE') or os.getenv('ANTHROPIC_API_KEY'):
             self.providers["anthropic"] = AnthropicClient()
         
-        # Setup Purdue provider
         if "purdue" in config:
             api_key = config["purdue"].get("api_key")
             self.providers["purdue"] = PurdueGenAI(api_key)
@@ -61,7 +46,6 @@ class AIGateway:
         elif os.getenv('PURDUE_API_KEY'):
             self.providers["purdue"] = PurdueGenAI()
         
-        # Setup Local Ollama provider
         if "ollama" in config:
             ollama_config = OllamaConfig(
                 base_url=config["ollama"].get("base_url", self.config.ollama_base_url),
@@ -76,28 +60,12 @@ class AIGateway:
             self.providers["ollama"] = OllamaClient(ollama_config)
     
     def chat(self, message: str, provider: Optional[str] = None, model: Optional[str] = None, messages: Optional[List[Dict[str, str]]] = None) -> str:
-        """
-        Send a chat message to specified AI provider
-        
-        Args:
-            message: Your message to the AI (single string, for backward compatibility)
-            provider: AI provider to use (auto-selects based on availability)
-            model: Model to use (uses provider default if not specified)
-            messages: Optional list of message dicts with 'role' and 'content' keys
-                     If provided, this takes precedence over 'message' parameter
-            
-        Returns:
-            str: AI response
-        """
-        # Auto-select provider based on availability (prioritize Anthropic)
+        """Send a chat message to specified AI provider."""
         if provider is None:
-            # Prioritize Anthropic if available (preferred default)
             if "anthropic" in self.providers:
                 provider = "anthropic"
-            # Fallback to config default
             elif self.config.provider_name in self.providers:
                 provider = self.config.provider_name
-            # Additional fallback logic
             elif self.config.provider_fallback and self.config.provider_fallback in self.providers:
                 provider = self.config.provider_fallback
             elif "ollama" in self.providers:
@@ -113,43 +81,28 @@ class AIGateway:
         
         provider_client = self.providers[provider]
         
-        # Handle different provider types
         if provider == "ollama":
             return self._chat_ollama(provider_client, message, model, messages)
         else:
-            # Use provider-specific default model if no model specified
             if model is None:
                 model = self.config.get_model_for_provider(provider)
-            # For non-Ollama providers, use messages array if provided, otherwise use message string
             if messages:
                 return provider_client.chat(messages, model)
             else:
                 return provider_client.chat(message, model)
     
     def _chat_ollama(self, client: OllamaClient, message: str, model: Optional[str] = None, messages: Optional[List[Dict[str, str]]] = None) -> str:
-        """Helper to handle Ollama calls"""
-        # If messages array provided, use it; otherwise use single message string
         if messages:
             return client.chat(messages, model=model)
         else:
             return client.chat(message, model=model)
     
     def get_available_providers(self) -> List[str]:
-        """Get list of available providers"""
+        """Get list of available providers."""
         return list(self.providers.keys())
     
     async def embeddings(self, prompt: str, model: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Generate embeddings for text
-        
-        Args:
-            prompt: Text to embed
-            model: Model to use (optional)
-            
-        Returns:
-            Dictionary with embedding data
-        """
-        # Use Ollama for embeddings if available
+        """Generate embeddings for text."""
         if "ollama" in self.providers:
             ollama_client = self.providers["ollama"]
             return await ollama_client.embeddings(prompt, model)

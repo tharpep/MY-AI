@@ -1,8 +1,4 @@
-"""
-Tool registry for managing available tools
-
-Maintains a registry of all available tools and provides lookup/execution capabilities.
-"""
+"""Tool registry for managing available tools"""
 
 from typing import Dict, Optional, List, Any
 from .base_tool import BaseTool, ToolResult, ToolSchema
@@ -12,31 +8,15 @@ logger = logging.getLogger(__name__)
 
 
 class ToolRegistry:
-    """
-    Registry for managing and executing tools.
-    
-    Maintains a dictionary of registered tools and provides:
-    - Tool registration
-    - Tool lookup by name
-    - Tool execution with validation
-    - Allowlist management
-    """
+    """Registry for managing and executing tools."""
     
     def __init__(self):
         """Initialize empty tool registry."""
         self._tools: Dict[str, BaseTool] = {}
-        self._allowlist: Optional[List[str]] = None  # None = all tools allowed
+        self._allowlist: Optional[List[str]] = None
     
     def register(self, tool: BaseTool) -> None:
-        """
-        Register a tool in the registry.
-        
-        Args:
-            tool: Tool instance to register
-            
-        Raises:
-            ValueError: If tool name is already registered
-        """
+        """Register a tool in the registry."""
         if tool.name in self._tools:
             raise ValueError(f"Tool '{tool.name}' is already registered")
         
@@ -44,38 +24,19 @@ class ToolRegistry:
         logger.info(f"Registered tool: {tool.name}")
     
     def get_tool(self, tool_name: str) -> Optional[BaseTool]:
-        """
-        Get a tool by name.
-        
-        Args:
-            tool_name: Name of tool to retrieve
-            
-        Returns:
-            Tool instance or None if not found
-        """
+        """Get a tool by name."""
         return self._tools.get(tool_name)
     
     def get_available_tools(self) -> List[str]:
-        """
-        Get list of available tools (respecting allowlist).
-        
-        Returns:
-            List of available tool names
-        """
+        """Get list of available tools (respecting allowlist)."""
         all_tools = list(self._tools.keys())
         if self._allowlist is None:
             return all_tools
         return [name for name in all_tools if name in self._allowlist]
     
     def set_allowlist(self, tool_names: Optional[List[str]]) -> None:
-        """
-        Set tool allowlist.
-        
-        Args:
-            tool_names: List of allowed tool names, or None to allow all
-        """
+        """Set tool allowlist."""
         if tool_names is not None:
-            # Validate all tools in allowlist exist
             for tool_name in tool_names:
                 if tool_name not in self._tools:
                     logger.warning(f"Tool '{tool_name}' in allowlist is not registered")
@@ -84,15 +45,7 @@ class ToolRegistry:
         logger.info(f"Tool allowlist set: {tool_names}")
     
     def is_allowed(self, tool_name: str) -> bool:
-        """
-        Check if a tool is allowed (in allowlist).
-        
-        Args:
-            tool_name: Name of tool to check
-            
-        Returns:
-            True if tool is allowed, False otherwise
-        """
+        """Check if a tool is allowed (in allowlist)."""
         if tool_name not in self._tools:
             return False
         if self._allowlist is None:
@@ -105,21 +58,7 @@ class ToolRegistry:
         parameters: Dict[str, Any],
         validate: bool = True
     ) -> ToolResult:
-        """
-        Execute a tool with given parameters.
-        
-        Args:
-            tool_name: Name of tool to execute
-            parameters: Tool parameters
-            validate: Whether to validate parameters before execution
-            
-        Returns:
-            ToolResult with execution outcome
-            
-        Raises:
-            ValueError: If tool not found or not allowed
-        """
-        # Check if tool exists
+        """Execute a tool with given parameters."""
         tool = self.get_tool(tool_name)
         if tool is None:
             return ToolResult(
@@ -127,14 +66,12 @@ class ToolRegistry:
                 error=f"Tool '{tool_name}' not found"
             )
         
-        # Check if tool is allowed
         if not self.is_allowed(tool_name):
             return ToolResult(
                 success=False,
                 error=f"Tool '{tool_name}' is not in allowlist"
             )
         
-        # Validate parameters if requested
         if validate:
             is_valid, error_msg = tool.validate_parameters(parameters)
             if not is_valid:
@@ -143,14 +80,12 @@ class ToolRegistry:
                     error=f"Parameter validation failed: {error_msg}"
                 )
         
-        # Execute tool
         try:
             import time
             start_time = time.time()
             result = await tool.execute(**parameters)
             execution_time = (time.time() - start_time) * 1000
             
-            # Add execution time if not already set
             if result.execution_time_ms is None:
                 result.execution_time_ms = execution_time
             

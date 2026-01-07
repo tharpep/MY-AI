@@ -1,7 +1,4 @@
-"""
-Purdue GenAI Studio API Client
-External provider for Purdue's GenAI infrastructure
-"""
+"""Purdue GenAI Studio API Client"""
 
 import json
 import os
@@ -10,9 +7,7 @@ import urllib.error
 from typing import Optional, List, Any
 from ..base_client import BaseLLMClient
 
-# Load environment variables from .env file
 def load_env_file():
-    """Load environment variables from .env file"""
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), '.env')
     if os.path.exists(env_path):
         with open(env_path, 'r') as f:
@@ -29,12 +24,7 @@ class PurdueGenAI(BaseLLMClient):
     """Simple client for Purdue GenAI Studio"""
     
     def __init__(self, api_key: Optional[str] = None):
-        """
-        Initialize Purdue GenAI client
-        
-        Args:
-            api_key: API key for Purdue GenAI Studio. If None, will try to load from PURDUE_API_STUDIO or PURDUE_API_KEY environment variable
-        """
+        """Initialize Purdue GenAI client."""
         from core.config import get_config
         config = get_config()
         
@@ -53,16 +43,7 @@ class PurdueGenAI(BaseLLMClient):
         self.default_model = config.model_purdue
     
     def chat(self, messages: Any, model: Optional[str] = None, **kwargs) -> str:
-        """
-        Send a message and get a response
-        
-        Args:
-            messages: Your message (str) or messages list
-            model: Model to use (default: from config.model_purdue)
-            
-        Returns:
-            str: AI response text
-        """
+        """Send a message and get a response."""
         # Use default model if none specified
         if model is None:
             model = self.default_model

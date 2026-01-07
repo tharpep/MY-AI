@@ -1,8 +1,4 @@
-"""
-Base tool interface and abstract class
-
-All tools must inherit from BaseTool and implement the required methods.
-"""
+"""Base tool interface and abstract class"""
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
@@ -43,20 +39,12 @@ class ToolSchema(BaseModel):
 
 
 class BaseTool(ABC):
-    """
-    Abstract base class for all tools.
-    
-    All tools must inherit from this class and implement:
-    - name: Tool identifier
-    - description: Human-readable description
-    - execute(): Tool execution logic
-    - get_schema(): Tool schema for validation
-    """
+    """Abstract base class for all tools."""
     
     @property
     @abstractmethod
     def name(self) -> str:
-        """Tool identifier (e.g., 'rag_answer', 'web_search')."""
+        """Tool identifier."""
         pass
     
     @property
@@ -67,57 +55,34 @@ class BaseTool(ABC):
     
     @property
     def read_only(self) -> bool:
-        """Whether tool is read-only (default: True)."""
+        """Whether tool is read-only."""
         return True
     
     @property
     def idempotent(self) -> bool:
-        """Whether tool is idempotent (default: True)."""
+        """Whether tool is idempotent."""
         return True
     
     @abstractmethod
     async def execute(self, **kwargs: Any) -> ToolResult:
-        """
-        Execute the tool with given parameters.
-        
-        Args:
-            **kwargs: Tool-specific parameters
-            
-        Returns:
-            ToolResult with execution outcome
-        """
+        """Execute the tool with given parameters."""
         pass
     
     @abstractmethod
     def get_schema(self) -> ToolSchema:
-        """
-        Get tool schema for validation and documentation.
-        
-        Returns:
-            ToolSchema with parameter and return definitions
-        """
+        """Get tool schema for validation and documentation."""
         pass
     
     def validate_parameters(self, parameters: Dict[str, Any]) -> tuple[bool, Optional[str]]:
-        """
-        Validate tool parameters against schema.
-        
-        Args:
-            parameters: Parameters to validate
-            
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
+        """Validate tool parameters against schema."""
         schema = self.get_schema()
         required_params = schema.parameters.get("required", [])
         properties = schema.parameters.get("properties", {})
         
-        # Check required parameters
         for param in required_params:
             if param not in parameters:
                 return False, f"Missing required parameter: {param}"
         
-        # Validate parameter types (basic validation)
         for param_name, param_value in parameters.items():
             if param_name in properties:
                 param_schema = properties[param_name]

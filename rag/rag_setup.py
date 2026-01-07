@@ -1,8 +1,4 @@
-"""
-Context Engine (formerly RAG System Orchestrator)
-Coordinates vector storage, retrieval, and generation components.
-Supports dual-tier retrieval: Library (documents) and Journal (chat history).
-"""
+"""Context Engine"""
 
 from typing import List, Tuple, Optional
 from llm.gateway import AIGateway
@@ -12,22 +8,10 @@ from .journal import JournalManager
 from core.config import get_config
 
 class ContextEngine:
-    """
-    Context Engine with dual-tier retrieval.
-    
-    Handles both Library (document) and Journal (chat history) retrieval
-    for comprehensive context injection into LLM prompts.
-    """
+    """Context Engine with dual-tier retrieval."""
     
     def __init__(self, collection_name=None, use_persistent=None, enable_journal=True):
-        """
-        Initialize Context Engine
-        
-        Args:
-            collection_name: Name for Library Qdrant collection (uses config default if None)
-            use_persistent: If True, use persistent Qdrant storage (uses config default if None)
-            enable_journal: If True, initialize Journal tier for chat history retrieval
-        """
+        """Initialize Context Engine."""
         self.config = get_config()
         self.collection_name = collection_name or self.config.library_collection_name
         
@@ -52,7 +36,6 @@ class ContextEngine:
         self._setup_collection()
     
     def _setup_collection(self):
-        """Setup the Library vector collection"""
         # Try to get dimension from registry to avoid eager loading of model
         try:
             from core.model_registry import get_configured_model
@@ -71,22 +54,12 @@ class ContextEngine:
     
     @property
     def journal(self) -> Optional[JournalManager]:
-        """Lazy-load Journal tier."""
         if self._enable_journal and self._journal is None:
             self._journal = JournalManager(vector_store=self.vector_store)
         return self._journal
     
     def add_documents(self, documents, metadata: dict = None):
-        """
-        Add documents to the vector database
-        
-        Args:
-            documents: List of text documents to index
-            metadata: Optional metadata to store with each chunk (e.g., {"blob_id": "blob_xxx"})
-            
-        Returns:
-            Number of documents added
-        """
+        """Add documents to the vector database."""
         # Create embeddings
         embeddings = self.retriever.encode_documents(documents)
         
@@ -97,16 +70,7 @@ class ContextEngine:
         return self.vector_store.add_points(self.collection_name, points)
     
     def search(self, query, limit=None):
-        """
-        Search for relevant documents
-        
-        Args:
-            query: Search query
-            limit: Number of results to return (uses config default if None)
-            
-        Returns:
-            List of (text, score) tuples
-        """
+        """Search for relevant documents."""
         # Use config default if limit not specified
         if limit is None:
             limit = self.config.chat_library_top_k
@@ -123,19 +87,7 @@ class ContextEngine:
         top_k: int,
         similarity_threshold: float
     ) -> List[Tuple[str, float]]:
-        """
-        Get RAG context for chat endpoint.
-        Performs vector search with top-k and filters by similarity threshold.
-
-        Args:
-            query: User query/message
-            top_k: Number of documents to retrieve from vector search
-            similarity_threshold: Minimum similarity score to include (0.0-1.0)
-
-        Returns:
-            List of (document_text, similarity_score) tuples that pass threshold.
-            Empty list if no documents pass threshold.
-        """
+        """Get RAG context for chat endpoint."""
         # Perform vector search with top-k
         retrieved = self.search(query, limit=top_k)
         
@@ -171,16 +123,7 @@ class ContextEngine:
         return filtered
     
     def query(self, question, context_limit=None):
-        """
-        Answer a question using RAG
-        
-        Args:
-            question: Question to answer
-            context_limit: Number of documents to retrieve for context (uses config default if None)
-            
-        Returns:
-            Answer string
-        """
+        """Answer a question using RAG."""
         # Use config default if context_limit not specified
         if context_limit is None:
             context_limit = self.config.chat_library_top_k
@@ -227,7 +170,6 @@ class ContextEngine:
         return answer, context_docs, context_scores
     
     def get_stats(self):
-        """Get collection statistics"""
         stats = self.vector_store.get_collection_stats(self.collection_name)
         if "error" not in stats:
             stats.update({
@@ -249,7 +191,6 @@ class ContextEngine:
         return stats
     
     def clear_collection(self):
-        """Clear all documents from the collection"""
         try:
             embedding_dim = self.retriever.get_embedding_dimension()
             
@@ -263,12 +204,7 @@ class ContextEngine:
             return {"error": f"Failed to clear collection: {str(e)}"}
     
     def get_indexed_files(self) -> dict:
-        """
-        Get list of indexed files (blob_ids) with their chunk counts.
-        
-        Returns:
-            Dictionary with list of indexed files and their stats
-        """
+        """Get list of indexed files (blob_ids) with their chunk counts."""
         try:
             # Query all points with scroll to get unique blob_ids
             from qdrant_client.models import Filter, FieldCondition, MatchValue, ScrollRequest
@@ -310,15 +246,7 @@ class ContextEngine:
             return {"error": f"Failed to get indexed files: {str(e)}", "files": [], "total_files": 0}
     
     def delete_by_blob_id(self, blob_id: str) -> dict:
-        """
-        Delete all chunks associated with a specific blob_id.
-        
-        Args:
-            blob_id: The blob identifier to delete
-            
-        Returns:
-            Dictionary with deletion result
-        """
+        """Delete all chunks associated with a specific blob_id."""
         try:
             from qdrant_client.models import Filter, FieldCondition, MatchValue
             
@@ -344,15 +272,7 @@ _context_engine_instance: "ContextEngine | None" = None
 
 
 def get_rag() -> "ContextEngine":
-    """
-    Get the global ContextEngine instance (singleton pattern).
-    
-    Initializes once on first call, reuses on subsequent calls.
-    This avoids repeated Qdrant connections and embedding model loads.
-    
-    Returns:
-        ContextEngine instance
-    """
+    """Get the global ContextEngine instance."""
     global _context_engine_instance
     if _context_engine_instance is None:
         _context_engine_instance = ContextEngine()

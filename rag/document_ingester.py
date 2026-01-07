@@ -1,7 +1,4 @@
-"""
-Document Ingestion System
-Handles file processing and indexing for RAG system
-"""
+"""Document Ingestion System"""
 
 import os
 import glob
@@ -14,25 +11,12 @@ class DocumentIngester:
     """Handles document ingestion and preprocessing"""
     
     def __init__(self, rag_system: ContextEngine):
-        """
-        Initialize document ingester
-        
-        Args:
-            rag_system: RAG system instance to index documents into
-        """
+        """Initialize document ingester."""
         self.rag = rag_system
         self.supported_extensions = ['.txt', '.md']
     
     def ingest_file(self, file_path: Union[str, Path]) -> Dict[str, Any]:
-        """
-        Ingest a single file
-        
-        Args:
-            file_path: Path to the file to ingest
-            
-        Returns:
-            Dictionary with ingestion results
-        """
+        """Ingest a single file."""
         file_path = Path(file_path)
         
         if not file_path.exists():
@@ -42,14 +26,11 @@ class DocumentIngester:
             return {"error": f"Unsupported file type: {file_path.suffix}"}
         
         try:
-            # Read file content
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Basic preprocessing
             processed_content = self._preprocess_text(content)
             
-            # Chunk long documents using config values
             from core.config import get_config
             config = get_config()
             chunks = self._chunk_text(
@@ -58,7 +39,6 @@ class DocumentIngester:
                 overlap=config.library_chunk_overlap
             )
             
-            # Index chunks
             count = self.rag.add_documents(chunks)
             
             return {
@@ -72,15 +52,7 @@ class DocumentIngester:
             return {"error": f"Failed to process {file_path}: {str(e)}"}
     
     def ingest_folder(self, folder_path: Union[str, Path]) -> Dict[str, Any]:
-        """
-        Ingest all supported files in a folder
-        
-        Args:
-            folder_path: Path to folder containing documents
-            
-        Returns:
-            Dictionary with ingestion results
-        """
+        """Ingest all supported files in a folder."""
         folder_path = Path(folder_path)
         
         if not folder_path.exists():
@@ -94,7 +66,6 @@ class DocumentIngester:
             "errors": []
         }
         
-        # Find all supported files
         for ext in self.supported_extensions:
             pattern = str(folder_path / f"**/*{ext}")
             files = glob.glob(pattern, recursive=True)
@@ -116,35 +87,11 @@ class DocumentIngester:
         return results
     
     def _preprocess_text(self, text: str) -> str:
-        """
-        Basic text preprocessing
-        
-        Args:
-            text: Raw text content
-            
-        Returns:
-            Cleaned text
-        """
-        # Remove extra whitespace
         text = ' '.join(text.split())
-        
-        # Remove empty lines
         lines = [line.strip() for line in text.split('\n') if line.strip()]
-        
         return '\n'.join(lines)
     
     def _chunk_text(self, text: str, max_chunk_size: int = 1000, overlap: int = 100) -> List[str]:
-        """
-        Split text into overlapping chunks
-        
-        Args:
-            text: Text to chunk
-            max_chunk_size: Maximum characters per chunk
-            overlap: Number of characters to overlap between chunks
-            
-        Returns:
-            List of text chunks
-        """
         if len(text) <= max_chunk_size:
             return [text]
         
@@ -154,9 +101,7 @@ class DocumentIngester:
         while start < len(text):
             end = start + max_chunk_size
             
-            # Try to break at sentence boundary
             if end < len(text):
-                # Look for sentence endings
                 for i in range(end, max(start + max_chunk_size // 2, end - 200), -1):
                     if text[i] in '.!?':
                         end = i + 1
@@ -173,15 +118,7 @@ class DocumentIngester:
         return chunks
     
     def get_supported_files(self, folder_path: Union[str, Path]) -> List[str]:
-        """
-        Get list of supported files in a folder
-        
-        Args:
-            folder_path: Path to folder
-            
-        Returns:
-            List of file paths
-        """
+        """Get list of supported files in a folder."""
         folder_path = Path(folder_path)
         files = []
         

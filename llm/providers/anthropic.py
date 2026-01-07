@@ -1,7 +1,4 @@
-"""
-Anthropic Claude API Client
-External provider for Anthropic's Claude models
-"""
+"""Anthropic Claude API Client"""
 
 import json
 import os
@@ -10,9 +7,7 @@ import urllib.error
 from typing import Optional, List, Any
 from ..base_client import BaseLLMClient
 
-# Load environment variables from .env file
 def load_env_file():
-    """Load environment variables from .env file"""
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), '.env')
     if os.path.exists(env_path):
         with open(env_path, 'r') as f:
@@ -29,12 +24,7 @@ class AnthropicClient(BaseLLMClient):
     """Client for Anthropic Claude API"""
     
     def __init__(self, api_key: Optional[str] = None):
-        """
-        Initialize Anthropic Claude client
-        
-        Args:
-            api_key: API key for Anthropic. If None, will try to load from CLAUDE environment variable
-        """
+        """Initialize Anthropic Claude client."""
         from core.config import get_config
         config = get_config()
         
@@ -55,16 +45,7 @@ class AnthropicClient(BaseLLMClient):
         self.api_version = "2023-06-01"
     
     def chat(self, messages: Any, model: Optional[str] = None, **kwargs) -> str:
-        """
-        Send a message and get a response
-        
-        Args:
-            messages: Your message (str) or messages list with 'role' and 'content' keys
-            model: Model to use (default: claude-haiku-4-5-20251001 - Latest Haiku 4.5)
-            
-        Returns:
-            str: AI response text
-        """
+        """Send a message and get a response."""
         # Handle both string and list formats
         if isinstance(messages, str):
             # Convert single string to messages format
@@ -144,12 +125,7 @@ class AnthropicClient(BaseLLMClient):
             raise Exception(f"Error calling Anthropic API: {str(e)}")
     
     def get_available_models(self) -> List[str]:
-        """
-        Get list of available Anthropic models (latest versions only)
-        
-        Returns:
-            List of model names
-        """
+        """Get list of available Anthropic models."""
         return [
             "claude-opus-4-1-20250805",  # Latest Opus 4.1 (Aug 2025) - Most capable
             "claude-sonnet-4-5-20250929",  # Latest Sonnet 4.5 (Sep 2025) - Balanced performance
