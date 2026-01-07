@@ -100,7 +100,7 @@ def _handle_session_management(
     if _last_session_id is not None and _last_session_id != session_id:
         _maybe_auto_ingest_session(_last_session_id)
 
-    # Step 2: Ensure session exists (upsert)
+    # Step 2: Ensure session exists and update last_activity
     session_store.upsert_session(session_id)
 
     # Step 3: Save user message
@@ -110,9 +110,6 @@ def _handle_session_management(
     # Step 4: Save assistant response
     session_store.add_message(session_id, "assistant", assistant_response)
     session_store.increment_message_count(session_id)
-
-    # Step 5: Update last_activity
-    session_store.upsert_session(session_id)
 
     # Step 6: Auto-set session name if not set (after first assistant response)
     _maybe_auto_name_session(session_id, session_store, config)
@@ -287,9 +284,9 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         
         # Use ChatService to prepare message with RAG context
         from core.services import ChatService
-        from ..main import rag_instance
+        from rag.rag_setup import get_rag
         
-        chat_service = ChatService(config, context_engine=rag_instance)
+        chat_service = ChatService(config, context_engine=get_rag())
         message_result = chat_service.prepare_chat_message(
             user_message=user_message,
             conversation_history=messages[:-1],  # All messages except the current one

@@ -72,7 +72,6 @@ async def get_session_messages(session_id: str) -> Dict[str, Any]:
         Session metadata + messages + ingestion status
     """
     from core.session_store import get_session_store
-    from rag.journal import JournalManager
 
     request_id = _generate_request_id()
 
@@ -94,11 +93,13 @@ async def get_session_messages(session_id: str) -> Dict[str, Any]:
             )
 
         # Get ingestion status
-        journal_manager = JournalManager()
-        ingestion_status = journal_manager.get_ingestion_status(session_id)
+        from rag.rag_setup import get_rag
+        rag = get_rag()
+        journal = rag.journal if rag else None
+        ingestion_status = journal.get_ingestion_status(session_id) if journal else {"ingested": False}
 
         return {
-            "session_id": session_data.get("session_id"),
+            "session_id": session_id,
             "name": session_data.get("name"),
             "created_at": session_data.get("created_at"),
             "last_activity": session_data.get("last_activity"),
@@ -148,7 +149,6 @@ async def ingest_session(session_id: str) -> Dict[str, Any]:
         Ingestion results (chunks_created, blob_path, etc.)
     """
     from core.session_store import get_session_store
-    from rag.journal import JournalManager
 
     request_id = _generate_request_id()
 
@@ -185,8 +185,23 @@ async def ingest_session(session_id: str) -> Dict[str, Any]:
             )
 
         # Perform ingestion
-        journal_manager = JournalManager()
-        result = journal_manager.ingest_session(session_id)
+        from rag.rag_setup import get_rag
+        rag = get_rag()
+        if not rag or not rag.journal:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "error": {
+                        "message": "Journal system not available. RAG may be disabled.",
+                        "type": "service_unavailable",
+                        "code": "journal_unavailable"
+                    },
+                    "request_id": request_id
+                }
+            )
+        
+        journal = rag.journal
+        result = journal.ingest_session(session_id)
 
         if "error" in result:
             raise HTTPException(
@@ -244,13 +259,26 @@ async def delete_session(session_id: str) -> Dict[str, Any]:
     Returns:
         Confirmation of deletion
     """
-    from rag.journal import JournalManager
-
     request_id = _generate_request_id()
 
     try:
-        journal_manager = JournalManager()
-        success = await journal_manager.delete_session(session_id)
+        from rag.rag_setup import get_rag
+        rag = get_rag()
+        if not rag or not rag.journal:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "error": {
+                        "message": "Journal system not available",
+                        "type": "service_unavailable",
+                        "code": "journal_unavailable"
+                    },
+                    "request_id": request_id
+                }
+            )
+        
+        journal = rag.journal
+        success = await journal.delete_session(session_id)
 
         if success:
             return {
@@ -299,16 +327,27 @@ async def get_memory_stats() -> Dict[str, Any]:
         - Session counts
     """
     from core.session_store import get_session_store
-    from rag.journal import JournalManager
 
     request_id = _generate_request_id()
 
     try:
+        from rag.rag_setup import get_rag
         session_store = get_session_store()
-        journal_manager = JournalManager()
+        rag = get_rag()
+        
+        if not rag or not rag.journal:
+            # Return minimal stats if journal unavailable
+            sessions = session_store.list_sessions(limit=10000)
+            return {
+                "journal_available": False,
+                "total_sessions": len(sessions),
+                "request_id": request_id
+            }
+        
+        journal = rag.journal
 
         # Get Qdrant stats
-        qdrant_stats = journal_manager.get_stats()
+        qdrant_stats = journal.get_stats()
 
         # Get session counts from SQLite
         all_sessions = session_store.list_sessions(limit=10000)
@@ -351,7 +390,6 @@ async def get_session_status(session_id: str) -> Dict[str, Any]:
         Ingestion status details
     """
     from core.session_store import get_session_store
-    from rag.journal import JournalManager
 
     request_id = _generate_request_id()
 
@@ -372,8 +410,10 @@ async def get_session_status(session_id: str) -> Dict[str, Any]:
                 }
             )
 
-        journal_manager = JournalManager()
-        status_info = journal_manager.get_ingestion_status(session_id)
+        from rag.rag_setup import get_rag
+        rag = get_rag()
+        journal = rag.journal if rag else None
+        status_info = journal.get_ingestion_status(session_id) if journal else {"ingested": False}
 
         return {
             **status_info,

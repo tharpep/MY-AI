@@ -19,7 +19,8 @@ async def health_check() -> Dict[str, Any]:
 @router.get("/detailed")
 async def detailed_health_check() -> Dict[str, Any]:
     """Detailed health check including system components."""
-    from ..main import gateway, rag_instance
+    from ..main import gateway
+    from rag.rag_setup import get_rag
     from core.config import get_config
     from app.db import get_db_connection
     
@@ -46,8 +47,9 @@ async def detailed_health_check() -> Dict[str, Any]:
     # Check RAG System
     try:
         config = get_config()
-        if config.chat_context_enabled and rag_instance:
-            stats = rag_instance.get_stats()
+        rag = get_rag()
+        if config.chat_context_enabled and rag:
+            stats = rag.get_stats()
             components["rag_system"] = {
                 "status": "healthy",
                 "documents": stats.get("document_count", 0)
