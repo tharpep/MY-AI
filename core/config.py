@@ -139,6 +139,28 @@ class AppConfig(BaseSettings):
         default="journal_entries",
         description="Qdrant collection name for Journal (chat history)"
     )
+    journal_blob_storage_path: str = Field(
+        default="./data/journal_blob",
+        description="Path to blob storage directory for exported Journal sessions"
+    )
+    journal_title_max_length: int = Field(
+        default=25,
+        ge=10,
+        le=100,
+        description="Maximum length for auto-generated session titles (10-100)"
+    )
+    journal_chunk_size: int = Field(
+        default=1500,
+        ge=100,
+        le=5000,
+        description="Maximum characters per chunk when ingesting journal sessions (100-5000)"
+    )
+    journal_chunk_overlap: int = Field(
+        default=150,
+        ge=0,
+        le=500,
+        description="Overlap characters between journal chunks (0-500)"
+    )
     
     # ===== Embedding Model Configuration =====
     embedding_model: str = Field(
