@@ -135,19 +135,15 @@ def main():
     
     print("=== Document Ingestion Demo ===\n")
     
-    # Initialize RAG with persistent storage
     print("1. Initializing RAG with persistent storage...")
     rag = ContextEngine(use_persistent=True)
     
-    # Initialize ingester
     ingester = DocumentIngester(rag)
     
-    # Get folder from config
     config = get_config()
     documents_folder = config.library_documents_folder
     print(f"Using documents folder: {documents_folder}")
     
-    # Check what files are available
     supported_files = ingester.get_supported_files(documents_folder)
     
     print(f"2. Found {len(supported_files)} supported files:")
@@ -171,7 +167,6 @@ def main():
         print(f"\n3. No supported files found in {documents_folder}")
         print("   Add some .txt or .md files to test ingestion")
     
-    # Show final stats
     stats = rag.get_stats()
     print(f"\n4. Final RAG stats: {stats}")
 

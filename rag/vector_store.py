@@ -19,9 +19,7 @@ class VectorStore:
         
         if use_persistent:
             try:
-                # Connect to Qdrant server (supports multi-process access)
                 self.client = QdrantClient(host=qdrant_host, port=qdrant_port)
-                # Test connection
                 self.client.get_collections()
                 logger.info(f"Connected to Qdrant server at {qdrant_host}:{qdrant_port}")
             except Exception as e:
@@ -43,11 +41,9 @@ class VectorStore:
     def setup_collection(self, collection_name: str, embedding_dim: int) -> bool:
         """Create Qdrant collection if it doesn't exist."""
         try:
-            # Check if collection exists
             self.client.get_collection(collection_name)
             return True
         except:
-            # Create collection if it doesn't exist
             try:
                 self.client.create_collection(
                     collection_name=collection_name,
@@ -118,13 +114,11 @@ class VectorStore:
     def clear_collection(self, collection_name: str, embedding_dim: int = 384) -> bool:
         """Clear all points from a collection by recreating it."""
         try:
-            # Delete the entire collection
             try:
                 self.client.delete_collection(collection_name)
             except:
-                pass  # Collection might not exist
+                pass
             
-            # Recreate the collection immediately
             self.client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(

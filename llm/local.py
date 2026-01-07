@@ -76,7 +76,6 @@ class OllamaClient(BaseLLMClient):
 
     def chat(self, messages: Any, model: Optional[str] = None, **kwargs) -> str:
         """Send messages to Ollama chat endpoint."""
-        # Convert string message to proper format if needed
         if isinstance(messages, str):
             messages = [{"role": "user", "content": messages}]
         

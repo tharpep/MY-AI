@@ -100,8 +100,6 @@ class ToolRegistry:
             )
     
 
-
-# Global tool registry instance
 _registry: Optional[ToolRegistry] = None
 
 

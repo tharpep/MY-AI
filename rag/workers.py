@@ -1,7 +1,4 @@
-"""
-RAG Document Processing Workers
-Async workers for document ingestion via arq
-"""
+"""RAG Document Processing Workers"""
 
 import logging
 from arq.connections import RedisSettings
@@ -10,19 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 async def process_document(ctx: dict, blob_id: str) -> dict:
-    """
-    Process a document from blob storage into Qdrant.
-    
-    This is the main worker function called by arq.
-    Pipeline: Get Blob -> Parse -> Preprocess -> Chunk -> Embed -> Store
-    
-    Args:
-        ctx: arq context (contains redis connection)
-        blob_id: The blob to process
-        
-    Returns:
-        dict with processing results
-    """
+    """Process a document from blob storage into Qdrant."""
     import traceback
     
     try:
@@ -33,10 +18,9 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         
         logger.info(f"[Worker] Starting processing for blob: {blob_id}")
         
-        # Step 1: Get blob from storage
         storage = get_blob_storage()
         file_path = storage.get(blob_id)
-        blob_info = storage.get_info(blob_id)  # Get original filename from manifest
+        blob_info = storage.get_info(blob_id)
         
         if file_path is None:
             logger.error(f"[Worker] Blob not found: {blob_id}")
@@ -45,7 +29,6 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         original_filename = blob_info.original_filename if blob_info else file_path.name
         logger.info(f"[Worker] Found blob at: {file_path} (original: {original_filename})")
         
-        # Step 2: Parse document (extract text)
         parser = get_document_parser()
         parsed = parser.parse(file_path)
         
@@ -55,17 +38,14 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         
         logger.info(f"[Worker] Parsed {parsed.file_type}: {parsed.original_filename} ({len(parsed.text)} chars, {parsed.page_count} pages)")
         
-        # Step 3: Get RAG instance (singleton) and create ingester
         logger.info(f"[Worker] Getting RAG instance...")
         rag = get_rag()
         ingester = DocumentIngester(rag)
         logger.info(f"[Worker] RAG ready (collection: {rag.collection_name})")
         
-        # Step 4: Preprocess text
         processed_text = ingester._preprocess_text(parsed.text)
         logger.info(f"[Worker] Text preprocessed ({len(processed_text)} chars)")
         
-        # Step 5: Chunk text using config values
         from core.config import get_config
         config = get_config()
         chunks = ingester._chunk_text(
@@ -75,11 +55,10 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         )
         logger.info(f"[Worker] Created {len(chunks)} chunks")
         
-        # Step 6: Add to vector database (Qdrant) with blob tracking metadata
         logger.info(f"[Worker] Adding {len(chunks)} chunks to Qdrant...")
         metadata = {
             "blob_id": blob_id,
-            "original_filename": original_filename  # From blob manifest, not parsed path
+            "original_filename": original_filename
         }
         count = rag.add_documents(chunks, metadata=metadata)
         logger.info(f"[Worker] Indexed {count} chunks to Qdrant")
@@ -99,9 +78,7 @@ async def process_document(ctx: dict, blob_id: str) -> dict:
         raise
 
 
-# arq worker settings - uses config for Redis and timeout
 def _get_worker_settings():
-    """Get worker settings from config"""
     from core.config import get_config
     config = get_config()
     return {
@@ -114,7 +91,6 @@ class WorkerSettings:
     """arq worker configuration"""
     functions = [process_document]
     
-    # Get settings from config at import time
     from core.config import get_config
     _config = get_config()
     redis_settings = RedisSettings(host=_config.redis_host, port=_config.redis_port)

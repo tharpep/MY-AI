@@ -1,6 +1,11 @@
 # AI Slop Index
 
-## Category 1: Verbose Docstrings on Simple Methods
+## Category 1: Verbose Docstrings on Simple Methods ✅ COMPLETED
+
+**Status:** All Category 1 files have been cleaned up. Docstrings now follow:
+- Public methods: One-line docstrings
+- Private methods: Docstrings removed entirely
+- Class docstrings: Brief and concise
 
 ### `core/services/chat_service.py`
 - Line 23: `ChatMessageResult` - verbose class docstring for simple dataclass
@@ -148,7 +153,21 @@
 - Line 99-109: `search` - verbose docstring for simple search
 - Line 120-138: `get_context_for_chat` - verbose docstring with detailed filtering explanation
 
-## Category 2: Unnecessary Comments and Notes
+### `rag/journal.py` (Additional findings)
+- Line 1-9: Module docstring - overly detailed architecture explanation
+- Line 25-30: `JournalEntry` - verbose class docstring for simple schema
+- Line 37-42: `JournalChunkPayload` - verbose class docstring for simple schema
+- Line 52-58: `JournalManager` - verbose class docstring with implementation details
+- Line 60-67: `__init__` - verbose docstring with Args section
+- Line 112-129: `ingest_session` - verbose docstring with numbered pipeline steps and detailed Args/Returns
+
+### `rag/workers.py` (Additional findings)
+- Line 1-4: Module docstring - brief but could be simpler
+- Line 12-25: `process_document` - verbose docstring with pipeline explanation and Args/Returns
+- Line 103-104: `_get_worker_settings` - verbose docstring for simple function
+- Line 114: `WorkerSettings` - verbose class docstring
+
+## Category 2: Unnecessary Comments and Notes ✅ COMPLETED
 
 ### `core/services/chat_service.py`
 - Line 43: `# Class-level cache shared across all instances (for API multi-request scenarios)` - implementation detail comment
@@ -355,23 +374,30 @@
 
 ## Summary Statistics
 
-- Total files reviewed: 20+
-- Verbose docstrings: ~150+
+- Total files reviewed: 22+
+- **Category 1 (Verbose Docstrings):** ✅ COMPLETED - All 17 files cleaned (15 original + 2 additional)
+- **Category 2 (Unnecessary Comments):** ✅ COMPLETED - All obvious comments removed from listed files
 - Unnecessary comments: ~100+
 - AI-generated patterns: ~15
 - Missing TODOs: 1 (router.py)
 - Weird notes: ~10
 
 **Most common issues:**
-1. Verbose docstrings on simple getters/setters/initializers
+1. ✅ Verbose docstrings on simple getters/setters/initializers - **FIXED**
 2. Obvious comments explaining what the code does
 3. Implementation detail comments that don't add value
 4. Separator comments with equals signs
 5. Migration/backward compatibility notes in docstrings
 
-**Files with most issues:**
-1. `core/services/chat_service.py` - 50+ issues
-2. `core/file_storage.py` - 30+ issues
-3. `core/session_store.py` - 25+ issues
-4. `rag/document_ingester.py` - 20+ issues
-5. `agents/tool_registry.py` - 15+ issues
+**Files with most issues (before cleanup):**
+1. `core/services/chat_service.py` - 50+ issues → ✅ Cleaned
+2. `core/file_storage.py` - 30+ issues → ✅ Cleaned
+3. `core/session_store.py` - 25+ issues → ✅ Cleaned
+4. `rag/document_ingester.py` - 20+ issues → ✅ Cleaned
+5. `agents/tool_registry.py` - 15+ issues → ✅ Cleaned
+
+**Additional files cleaned up:**
+- `rag/journal.py` - ✅ Cleaned (6+ verbose docstrings removed)
+- `rag/workers.py` - ✅ Cleaned (3+ verbose docstrings removed)
+
+**Note:** Endpoint routes (`app/routes/*.py`), `main.py`, `db.py`, and `config.py` were excluded from Category 1 cleanup per user instructions, though some contain verbose docstrings.

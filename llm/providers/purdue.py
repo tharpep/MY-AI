@@ -28,7 +28,6 @@ class PurdueGenAI(BaseLLMClient):
         from core.config import get_config
         config = get_config()
         
-        # Try multiple environment variable names for flexibility
         self.api_key = (
             api_key or 
             config.purdue_api_key or 
@@ -39,16 +38,13 @@ class PurdueGenAI(BaseLLMClient):
         if not self.api_key:
             raise ValueError("API key is required. Provide it directly or set PURDUE_API_STUDIO environment variable.")
         self.base_url = "https://genai.rcac.purdue.edu/api/chat/completions"
-        # Get default model from config
         self.default_model = config.model_purdue
     
     def chat(self, messages: Any, model: Optional[str] = None, **kwargs) -> str:
         """Send a message and get a response."""
-        # Use default model if none specified
         if model is None:
             model = self.default_model
             
-        # Handle both string and message list formats
         if isinstance(messages, list):
             messages = messages
         elif isinstance(messages, str):
@@ -68,7 +64,6 @@ class PurdueGenAI(BaseLLMClient):
                 "stream": False
             }
             
-            # Make request
             data = json.dumps(body).encode('utf-8')
             req = urllib.request.Request(self.base_url, data=data, headers=headers, method='POST')
             
