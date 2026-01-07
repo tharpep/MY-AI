@@ -24,6 +24,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from core.prompts import get_prompt
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -289,7 +291,6 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         chat_service = ChatService(config, context_engine=get_rag())
         message_result = chat_service.prepare_chat_message(
             user_message=user_message,
-            conversation_history=messages[:-1],  # All messages except the current one
             use_library=request.use_library,
             use_journal=request.use_journal,
             session_id=request.session_id,
@@ -302,8 +303,14 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         
         prep_time = (time.time() - prep_start) * 1000
         
-        # Update the last message in messages array with formatted message
-        # This preserves conversation history while adding RAG context to current message
+        # Add system message if not present (should be first message)
+        system_prompt = request.system_prompt or get_prompt("llm")
+        if not messages or messages[0].get("role") != "system":
+            # Insert system message at the start
+            messages.insert(0, {"role": "system", "content": system_prompt})
+        
+        # Update the last message in messages array with formatted message (RAG context + user message)
+        # This preserves conversation history while adding RAG context to current user message
         messages[-1]["content"] = message_result.formatted_message
         library_results = message_result.library_results
         

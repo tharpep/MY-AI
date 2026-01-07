@@ -24,7 +24,7 @@ class ChatMessageResult:
     formatted_message: str
     library_results: List[Tuple[str, float]]  # Library (document) results
     library_context_text: Optional[str] = None
-    journal_results: List[Dict] = None  # Journal (chat history) results
+    journal_results: List[Tuple[str, float]] = None  # Journal (chat history) results - now matches Library format
     journal_context_text: Optional[str] = None
     
     def __post_init__(self):
@@ -61,7 +61,6 @@ class ChatService:
     def prepare_chat_message(
         self,
         user_message: str,
-        conversation_history: List[Dict[str, str]],
         use_library: Optional[bool] = None,
         use_journal: Optional[bool] = None,
         session_id: Optional[str] = None,
@@ -82,7 +81,6 @@ class ChatService:
         
         Args:
             user_message: The user's message/query
-            conversation_history: List of previous messages (role/content dicts)
             use_library: Whether to use Library (document) retrieval
             use_journal: Whether to use Journal (chat history) retrieval
             session_id: Session ID for Journal filtering (optional)
@@ -370,46 +368,44 @@ class ChatService:
         rag_prompt_template: Optional[str] = None
     ) -> str:
         """
-        Format user message with optional context.
+        Format user message with optional RAG context.
+    
         
         Args:
             user_message: The user's message
-            library_context_text: Context text (if available)
-            system_prompt: Custom system prompt (overrides default)
+            library_context_text: Merged context text (Library + Journal)
+            system_prompt: Unused (kept for backward compatibility)
             rag_prompt_template: Custom context prompt template (overrides default)
         
         Returns:
-            Formatted message string ready for LLM
+            Formatted user message with RAG context prepended if available
         """
         if library_context_text:
             # Format with context clearly separated
             if rag_prompt_template:
-                template = rag_prompt_template
+                # Use custom template
+                return format_prompt(
+                    rag_prompt_template,
+                    rag_context=library_context_text,
+                    user_message=user_message
+                )
             else:
-                template = get_prompt("llm_with_rag")
-            
-            return format_prompt(
-                template,
-                rag_context=library_context_text,
-                user_message=user_message
-            )
+                # Use default: prepend context to user message
+                return f"{library_context_text}\n\n---\n\nUser Question: {user_message}"
         else:
-            # No RAG - use regular format
-            if system_prompt:
-                system = system_prompt
-            else:
-                system = get_prompt("llm")
-            
-            return f"{system}\n\nUser: {user_message}"
+            # No RAG context - return plain user message
+            return user_message
     
     def _retrieve_journal_context(
         self,
         query: str,
         session_id: Optional[str] = None,
         limit: int = 5
-    ) -> Tuple[List[Dict], Optional[str]]:
+    ) -> Tuple[List[Tuple[str, float]], Optional[str]]:
         """
         Retrieve relevant chat history from Journal.
+        
+        Now uses the same interface as Library retrieval for consistency.
         
         Args:
             query: User query for semantic search
@@ -417,10 +413,9 @@ class ChatService:
             limit: Maximum entries to retrieve
             
         Returns:
-            Tuple of (journal_entries, formatted_context_text)
+            Tuple of (journal_results, formatted_context_text)
+            where journal_results is List[(text, score)]
         """
-        import asyncio
-        
         try:
             # Get Journal from ContextEngine
             if self._context_engine is None:
@@ -431,43 +426,24 @@ class ChatService:
             if journal is None:
                 return [], None
             
-            # Run async retrieval
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If already in async context, create task
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    entries = pool.submit(
-                        asyncio.run,
-                        journal.get_recent_context(query, session_id=session_id, limit=limit)
-                    ).result()
-            else:
-                entries = asyncio.run(
-                    journal.get_recent_context(query, session_id=session_id, limit=limit)
-                )
+            # Use unified interface (same as Library)
+            # Uses config default similarity threshold
+            similarity_threshold = self.config.chat_library_similarity_threshold
             
-            if not entries:
+            results = journal.get_context_for_chat(
+                query=query,
+                top_k=limit,
+                similarity_threshold=similarity_threshold,
+                session_id=session_id
+            )
+            
+            if not results:
                 return [], None
             
-            # Format entries as list of dicts for return
-            journal_results = [
-                {
-                    "role": entry.role,
-                    "content": entry.content,
-                    "timestamp": entry.timestamp,
-                    "session_id": entry.session_id
-                }
-                for entry in entries
-            ]
+            # Format context text (same pattern as Library)
+            context_text = self._format_context_text(results)
             
-            # Format as context text
-            context_parts = []
-            for entry in entries:
-                context_parts.append(f"[{entry.role.upper()}] {entry.content}")
-            
-            journal_context_text = "\n\n".join(context_parts)
-            
-            return journal_results, journal_context_text
+            return results, context_text
             
         except Exception as e:
             logger.warning(f"Journal retrieval failed: {e}")

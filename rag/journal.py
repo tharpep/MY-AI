@@ -345,6 +345,90 @@ class JournalManager:
     # RAG Retrieval Methods
     # =========================================================================
 
+    def get_context_for_chat(
+        self,
+        query: str,
+        top_k: int,
+        similarity_threshold: float,
+        session_id: Optional[str] = None
+    ) -> List[tuple[str, float]]:
+        """
+        Get RAG context for chat endpoint (matching Library interface).
+        
+        Performs vector search with top-k and filters by similarity threshold.
+        This is the recommended method for chat context retrieval.
+        
+        Args:
+            query: User query/message
+            top_k: Number of entries to retrieve from vector search
+            similarity_threshold: Minimum similarity score to include (0.0-1.0)
+            session_id: Optional session filter (None = search all sessions)
+            
+        Returns:
+            List of (text, similarity_score) tuples that pass threshold.
+            Empty list if no entries pass threshold.
+        """
+        try:
+            # Generate query embedding
+            query_vector = self.embedder.encode(query).tolist()
+            
+            # Build optional filter for session_id
+            query_filter = None
+            if session_id:
+                query_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="session_id",
+                            match=MatchValue(value=session_id)
+                        )
+                    ]
+                )
+            
+            # Search Qdrant
+            results = self.vector_store.client.query_points(
+                collection_name=self.config.journal_collection_name,
+                query=query_vector,
+                query_filter=query_filter,
+                limit=top_k
+            ).points
+            
+            # Convert to (text, score) tuples
+            retrieved = [(hit.payload.get("text", ""), hit.score) for hit in results]
+            
+            # Filter by similarity threshold
+            filtered = [(text, score) for text, score in retrieved if score >= similarity_threshold]
+            
+            # Log retrieval details if logging enabled
+            if self.config.log_output:
+                logger.info(f"Journal Retrieval - Query: '{query[:100]}...'")
+                logger.info(f"  Top-K: {top_k}, Threshold: {similarity_threshold}")
+                if session_id:
+                    logger.info(f"  Session Filter: {session_id}")
+                logger.info(f"  Retrieved: {len(retrieved)} entries, Filtered: {len(filtered)} entries")
+                if retrieved:
+                    logger.info(f"  Retrieved Entries (before threshold filter):")
+                    for i, (text, score) in enumerate(retrieved[:5], 1):  # Show top 5
+                        text_preview = text[:150] + "..." if len(text) > 150 else text
+                        passed = "✓" if score >= similarity_threshold else "✗"
+                        logger.info(f"    [{i}] {passed} Score: {score:.3f} | {text_preview}")
+                if filtered:
+                    logger.info(f"  Entries passing threshold ({len(filtered)}):")
+                    for i, (text, score) in enumerate(filtered, 1):
+                        text_preview = text[:150] + "..." if len(text) > 150 else text
+                        logger.info(f"    [{i}] Score: {score:.3f} | {text_preview}")
+                else:
+                    if retrieved:
+                        max_score = max(score for _, score in retrieved) if retrieved else 0
+                        logger.warning(f"  No entries passed threshold (max score: {max_score:.3f} < {similarity_threshold})")
+                    else:
+                        logger.info(f"  No entries retrieved")
+            
+            return filtered
+            
+        except Exception as e:
+            logger.error(f"Journal retrieval failed: {e}")
+            return []
+    
     async def get_recent_context(
         self,
         query: str,

@@ -118,7 +118,6 @@ def chat(
                     prep_start = time.time()
                     message_result = chat_service.prepare_chat_message(
                         user_message=user_input,
-                        conversation_history=conversation_history,
                         use_library=None,  # Use config default
                         use_journal=None,  # Use config default
                         library_top_k=None,  # Use config default
