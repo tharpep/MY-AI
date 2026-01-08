@@ -143,7 +143,7 @@ Replace character-based chunking with semantic chunking in both Library and Jour
 
 ---
 
-### Phase 4: Query Expansion
+### Phase 4: Query Expansion ✅ COMPLETE
 
 LLM-based query rewriting for vague queries.
 

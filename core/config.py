@@ -187,6 +187,16 @@ class AppConfig(BaseSettings):
         description="Cross-encoder model for reranking"
     )
     
+    # ===== Query Expansion Configuration =====
+    query_expansion_enabled: bool = Field(
+        default=True,
+        description="Enable LLM-based query expansion for better retrieval"
+    )
+    query_expansion_model: str = Field(
+        default="llama3.2:1b",
+        description="Fast model for query expansion (smaller = faster)"
+    )
+    
     # ===== Mnemosyne: Hardware Selection =====
     hardware_mode: Literal["gpu", "cpu", "auto"] = Field(
         default="auto",

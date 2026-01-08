@@ -5,6 +5,7 @@ from llm.gateway import AIGateway
 from .vector_store import VectorStore
 from .retriever import DocumentRetriever
 from .reranker import CrossEncoderReranker
+from .query_processor import QueryProcessor
 from .journal import JournalManager
 from core.config import get_config
 
@@ -30,6 +31,7 @@ class ContextEngine:
         
         self._journal: Optional[JournalManager] = None
         self._reranker: Optional[CrossEncoderReranker] = None
+        self._query_processor: Optional[QueryProcessor] = None
         self._enable_journal = enable_journal
         
         self._setup_collection()
@@ -63,23 +65,39 @@ class ContextEngine:
             self._reranker = CrossEncoderReranker(model_name=self.config.rerank_model)
         return self._reranker
     
+    @property
+    def query_processor(self) -> Optional[QueryProcessor]:
+        if self.config.query_expansion_enabled and self._query_processor is None:
+            self._query_processor = QueryProcessor(
+                gateway=self.gateway,
+                model=self.config.query_expansion_model
+            )
+        return self._query_processor
+    
     def add_documents(self, documents, metadata: dict = None):
         """Add documents to the vector database."""
         dense, sparse = self.retriever.encode_documents(documents)
         points = self.retriever.create_points(documents, dense, sparse, metadata=metadata)
         return self.vector_store.add_points(self.collection_name, points)
     
-    def search(self, query, limit=None):
-        """Search for relevant documents with optional reranking."""
+    def search(self, query, limit=None, expand_query=None):
+        """Search for relevant documents with optional query expansion and reranking."""
         if limit is None:
             limit = self.config.chat_library_top_k
+        
+        search_query = query
+        if expand_query is None:
+            expand_query = self.config.query_expansion_enabled
+        
+        if expand_query and self.query_processor:
+            search_query = self.query_processor.expand(query)
         
         if self.config.rerank_enabled:
             candidates = self.config.rerank_candidates
         else:
             candidates = limit
         
-        dense, sparse = self.retriever.encode_query(query)
+        dense, sparse = self.retriever.encode_query(search_query)
         results = self.vector_store.hybrid_search(
             self.collection_name, dense, sparse, candidates,
             sparse_weight=self.config.hybrid_sparse_weight
