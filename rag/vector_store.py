@@ -38,28 +38,22 @@ class VectorStore:
             self.client = QdrantClient(":memory:")
             logger.info("Using in-memory Qdrant storage")
     
-    def setup_collection(self, collection_name: str, embedding_dim: int, hybrid: bool = False) -> bool:
+    def setup_collection(self, collection_name: str, embedding_dim: int) -> bool:
         """Create Qdrant collection if it doesn't exist."""
         try:
             self.client.get_collection(collection_name)
             return True
         except:
             try:
-                if hybrid:
-                    self.client.create_collection(
-                        collection_name=collection_name,
-                        vectors_config={
-                            "dense": VectorParams(size=embedding_dim, distance=Distance.COSINE)
-                        },
-                        sparse_vectors_config={
-                            "sparse": SparseVectorParams(index=SparseIndexParams())
-                        },
-                    )
-                else:
-                    self.client.create_collection(
-                        collection_name=collection_name,
-                        vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE),
-                    )
+                self.client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config={
+                        "dense": VectorParams(size=embedding_dim, distance=Distance.COSINE)
+                    },
+                    sparse_vectors_config={
+                        "sparse": SparseVectorParams(index=SparseIndexParams())
+                    },
+                )
                 return True
             except Exception as e:
                 print(f"Error creating collection: {e}")
@@ -148,7 +142,7 @@ class VectorStore:
             print(f"Error listing collections: {e}")
             return []
     
-    def clear_collection(self, collection_name: str, embedding_dim: int = 384, hybrid: bool = False) -> bool:
+    def clear_collection(self, collection_name: str, embedding_dim: int = 1024) -> bool:
         """Clear all points from a collection by recreating it."""
         try:
             try:
@@ -156,7 +150,7 @@ class VectorStore:
             except:
                 pass
             
-            return self.setup_collection(collection_name, embedding_dim, hybrid=hybrid)
+            return self.setup_collection(collection_name, embedding_dim)
         except Exception as e:
             print(f"Error clearing collection {collection_name}: {e}")
             return False

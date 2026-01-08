@@ -14,11 +14,10 @@ class ContextEngine:
         """Initialize Context Engine."""
         self.config = get_config()
         self.collection_name = collection_name or self.config.library_collection_name
-        self.use_hybrid = self.config.use_hybrid_search
         
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"Initialized ContextEngine (ID: {id(self)}, hybrid={self.use_hybrid})")
+        logger.info(f"Initialized ContextEngine (ID: {id(self)})")
         
         self.gateway = AIGateway()
         self.vector_store = VectorStore(
@@ -26,10 +25,7 @@ class ContextEngine:
             qdrant_host=self.config.qdrant_host,
             qdrant_port=self.config.qdrant_port
         )
-        self.retriever = DocumentRetriever(
-            model_name=self.config.embedding_model,
-            use_hybrid=self.use_hybrid
-        )
+        self.retriever = DocumentRetriever(model_name=self.config.embedding_model)
         
         self._journal: Optional[JournalManager] = None
         self._enable_journal = enable_journal
@@ -46,11 +42,7 @@ class ContextEngine:
         except Exception:
             embedding_dim = self.retriever.get_embedding_dimension()
             
-        success = self.vector_store.setup_collection(
-            self.collection_name, 
-            embedding_dim,
-            hybrid=self.use_hybrid
-        )
+        success = self.vector_store.setup_collection(self.collection_name, embedding_dim)
         if not success:
             raise Exception(f"Failed to setup collection: {self.collection_name}")
     
@@ -65,13 +57,8 @@ class ContextEngine:
     
     def add_documents(self, documents, metadata: dict = None):
         """Add documents to the vector database."""
-        if self.use_hybrid:
-            dense, sparse = self.retriever.encode_documents_hybrid(documents)
-            points = self.retriever.create_hybrid_points(documents, dense, sparse, metadata=metadata)
-        else:
-            embeddings = self.retriever.encode_documents(documents)
-            points = self.retriever.create_points(documents, embeddings, metadata=metadata)
-        
+        dense, sparse = self.retriever.encode_documents(documents)
+        points = self.retriever.create_points(documents, dense, sparse, metadata=metadata)
         return self.vector_store.add_points(self.collection_name, points)
     
     def search(self, query, limit=None):
@@ -79,15 +66,11 @@ class ContextEngine:
         if limit is None:
             limit = self.config.chat_library_top_k
         
-        if self.use_hybrid:
-            dense, sparse = self.retriever.encode_query_hybrid(query)
-            return self.vector_store.hybrid_search(
-                self.collection_name, dense, sparse, limit,
-                sparse_weight=self.config.hybrid_sparse_weight
-            )
-        else:
-            query_embedding = self.retriever.encode_query(query)
-            return self.vector_store.search(self.collection_name, query_embedding, limit)
+        dense, sparse = self.retriever.encode_query(query)
+        return self.vector_store.hybrid_search(
+            self.collection_name, dense, sparse, limit,
+            sparse_weight=self.config.hybrid_sparse_weight
+        )
     
     def get_context_for_chat(
         self,

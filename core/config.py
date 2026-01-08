@@ -164,10 +164,6 @@ class AppConfig(BaseSettings):
     )
     
     # ===== Hybrid Search Configuration =====
-    use_hybrid_search: bool = Field(
-        default=True,
-        description="Enable hybrid search (dense + sparse vectors) for better retrieval"
-    )
     hybrid_sparse_weight: float = Field(
         default=0.3,
         ge=0.0,
