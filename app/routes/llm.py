@@ -308,9 +308,19 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         prep_time = (time.time() - prep_start) * 1000
         
         # Add system message if not present (should be first message)
-        system_prompt = request.system_prompt or get_prompt("llm")
+        from core.prompt_manager import get_prompt_manager
+        from core.profile_manager import get_profile_manager
+        
+        prompt_mgr = get_prompt_manager()
+        profile_mgr = get_profile_manager()
+        
+        system_prompt = request.system_prompt or prompt_mgr.get_system_prompt()
+        
+        profile_context = profile_mgr.get_context_string()
+        if profile_context:
+            system_prompt = f"{system_prompt}\n\n{profile_context}"
+        
         if not messages or messages[0].get("role") != "system":
-            # Insert system message at the start
             messages.insert(0, {"role": "system", "content": system_prompt})
         
         # Update the last message in messages array with formatted message (RAG context + user message)

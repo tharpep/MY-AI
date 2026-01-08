@@ -75,6 +75,28 @@ class ProfileManager:
         except Exception as e:
             logger.error(f"Failed to save profile: {e}")
             return UserProfile(**updated)
+    
+    def get_context_string(self) -> Optional[str]:
+        """Format profile as context string for LLM injection."""
+        profile = self.get_profile()
+        
+        parts = []
+        if profile.get("name") and profile["name"] != "User":
+            parts.append(f"User's name: {profile['name']}")
+        if profile.get("role") and profile["role"] != "Owner":
+            parts.append(f"Role: {profile['role']}")
+        if profile.get("bio"):
+            parts.append(f"About: {profile['bio']}")
+        
+        prefs = profile.get("preferences", {})
+        if prefs.get("tech_stack"):
+            parts.append(f"Tech stack: {', '.join(prefs['tech_stack'])}")
+        if prefs.get("brevity") and prefs["brevity"] != "normal":
+            parts.append(f"Prefers {prefs['brevity']} responses")
+        
+        if parts:
+            return "User Profile:\n" + "\n".join(parts)
+        return None
 
 # Global instance
 _profile_manager = None

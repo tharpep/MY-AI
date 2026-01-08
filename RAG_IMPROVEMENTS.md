@@ -177,7 +177,7 @@ query_expansion_model: str = Field(default="llama3.2:1b")  # Fast model for rewr
 
 ---
 
-### Phase 5: Dynamic System Prompt
+### Phase 5: Dynamic System Prompt ✅ COMPLETE
 
 Make system prompt editable via API. Uses existing file-based prompt storage.
 
