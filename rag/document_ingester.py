@@ -32,10 +32,12 @@ class DocumentIngester:
             processed_content = self._preprocess_text(content)
             
             from core.config import get_config
+            from rag.chunking import chunk_text
+            
             config = get_config()
-            chunks = self._chunk_text(
+            chunks = chunk_text(
                 processed_content, 
-                max_chunk_size=config.library_chunk_size,
+                chunk_size=config.library_chunk_size,
                 overlap=config.library_chunk_overlap
             )
             
@@ -90,32 +92,6 @@ class DocumentIngester:
         text = ' '.join(text.split())
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         return '\n'.join(lines)
-    
-    def _chunk_text(self, text: str, max_chunk_size: int = 1000, overlap: int = 100) -> List[str]:
-        if len(text) <= max_chunk_size:
-            return [text]
-        
-        chunks = []
-        start = 0
-        
-        while start < len(text):
-            end = start + max_chunk_size
-            
-            if end < len(text):
-                for i in range(end, max(start + max_chunk_size // 2, end - 200), -1):
-                    if text[i] in '.!?':
-                        end = i + 1
-                        break
-            
-            chunk = text[start:end].strip()
-            if chunk:
-                chunks.append(chunk)
-            
-            start = end - overlap
-            if start >= len(text):
-                break
-        
-        return chunks
     
     def get_supported_files(self, folder_path: Union[str, Path]) -> List[str]:
         """Get list of supported files in a folder."""

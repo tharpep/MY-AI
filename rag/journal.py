@@ -36,7 +36,7 @@ class JournalChunkPayload(BaseModel):
 class JournalManager:
     """Manages chat history ingestion and retrieval."""
 
-    def __init__(self, vector_store: Optional[VectorStore] = None):
+    def __init__(self, vector_store: Optional[VectorStore] = None, embedder=None):
         """Initialize the Journal Manager."""
         self.config = get_config()
 
@@ -52,6 +52,7 @@ class JournalManager:
         self.model_info = get_configured_model("journal")
         self.embedding_dim = self.model_info.dimension or 384
 
+        self._shared_embedder = embedder
         self._embedder = None
 
         self._setup_collection()
@@ -66,12 +67,24 @@ class JournalManager:
 
     @property
     def embedder(self):
-        """Lazy-load the embedding model."""
+        """Get the embedding model (shared or lazy-loaded)."""
+        if self._shared_embedder is not None:
+            return self._shared_embedder
+        
         if self._embedder is None:
             from sentence_transformers import SentenceTransformer
             self._embedder = SentenceTransformer(self.model_info.name)
             logger.info(f"Loaded embedding model: {self.model_info.name}")
         return self._embedder
+    
+    def _encode(self, text: str) -> List[float]:
+        """Encode text to embedding, handling both embedder types."""
+        if self._shared_embedder is not None:
+            if hasattr(self._shared_embedder, 'encode_documents'):
+                return self._shared_embedder.encode_documents([text])[0]
+            return self._shared_embedder.encode(text).tolist()
+        
+        return self.embedder.encode(text).tolist()
 
     def ingest_session(self, session_id: str) -> Dict[str, Any]:
         """Ingest a session into the journal RAG collection."""
@@ -101,7 +114,9 @@ class JournalManager:
             logger.info(f"Deleted {deleted_count} existing chunks for session {session_id}")
 
         conversation_text = self._format_conversation_for_ingestion(session_data)
-        chunks = self._chunk_text(
+        
+        from rag.chunking import chunk_conversation
+        chunks = chunk_conversation(
             conversation_text,
             chunk_size=self.config.journal_chunk_size,
             overlap=self.config.journal_chunk_overlap
@@ -112,7 +127,7 @@ class JournalManager:
         points = []
 
         for i, chunk_text in enumerate(chunks):
-            embedding = self.embedder.encode(chunk_text).tolist()
+            embedding = self._encode(chunk_text)
 
             payload = JournalChunkPayload(
                 text=chunk_text,
@@ -160,37 +175,6 @@ class JournalManager:
             parts.append(f"[{role}] {content}")
 
         return "\n\n".join(parts)
-
-    def _chunk_text(
-        self,
-        text: str,
-        chunk_size: int = 1500,
-        overlap: int = 150
-    ) -> List[str]:
-        if len(text) <= chunk_size:
-            return [text]
-
-        chunks = []
-        start = 0
-
-        while start < len(text):
-            end = start + chunk_size
-
-            if end < len(text):
-                para_break = text.rfind("\n\n", start, end)
-                if para_break > start + chunk_size // 2:
-                    end = para_break + 2
-                else:
-                    for sep in [". ", ".\n", "? ", "?\n", "! ", "!\n"]:
-                        sent_break = text.rfind(sep, start, end)
-                        if sent_break > start + chunk_size // 2:
-                            end = sent_break + len(sep)
-                            break
-
-            chunks.append(text[start:end].strip())
-            start = end - overlap
-
-        return [c for c in chunks if c]
 
     def delete_session_chunks(self, session_id: str) -> int:
         """Delete all chunks for a session from Qdrant."""
@@ -244,7 +228,7 @@ class JournalManager:
     ) -> List[tuple[str, float]]:
         """Get RAG context for chat endpoint."""
         try:
-            query_vector = self.embedder.encode(query).tolist()
+            query_vector = self._encode(query)
             
             query_filter = None
             if session_id:
@@ -306,7 +290,7 @@ class JournalManager:
     ) -> List[JournalEntry]:
         """Retrieve relevant chat history for context."""
         try:
-            query_vector = self.embedder.encode(query).tolist()
+            query_vector = self._encode(query)
 
             query_filter = None
             if session_id:
