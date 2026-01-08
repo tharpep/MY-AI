@@ -33,6 +33,7 @@ class DocumentIngester:
             config = get_config()
             
             is_markdown = file_path.suffix.lower() == '.md'
+            document_type = "markdown" if is_markdown else "text"
             
             if is_markdown:
                 from rag.chunking import chunk_markdown
@@ -41,7 +42,22 @@ class DocumentIngester:
                     chunk_size=config.library_chunk_size,
                     overlap=config.library_chunk_overlap
                 )
-                chunks = [text for text, _ in chunk_results]
+                
+                total_indexed = 0
+                for text, section_title in chunk_results:
+                    metadata = {
+                        "document_type": document_type,
+                        "source_file": str(file_path.name),
+                        "section_title": section_title if section_title else None
+                    }
+                    total_indexed += self.rag.add_documents([text], metadata=metadata)
+                
+                return {
+                    "success": True,
+                    "file": str(file_path),
+                    "chunks": len(chunk_results),
+                    "indexed": total_indexed
+                }
             else:
                 processed_content = self._preprocess_text(content)
                 from rag.chunking import chunk_text
@@ -50,15 +66,19 @@ class DocumentIngester:
                     chunk_size=config.library_chunk_size,
                     overlap=config.library_chunk_overlap
                 )
-            
-            count = self.rag.add_documents(chunks)
-            
-            return {
-                "success": True,
-                "file": str(file_path),
-                "chunks": len(chunks),
-                "indexed": count
-            }
+                
+                metadata = {
+                    "document_type": document_type,
+                    "source_file": str(file_path.name)
+                }
+                count = self.rag.add_documents(chunks, metadata=metadata)
+                
+                return {
+                    "success": True,
+                    "file": str(file_path),
+                    "chunks": len(chunks),
+                    "indexed": count
+                }
             
         except Exception as e:
             return {"error": f"Failed to process {file_path}: {str(e)}"}

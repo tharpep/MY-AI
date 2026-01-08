@@ -31,6 +31,7 @@ class JournalChunkPayload(BaseModel):
     total_chunks: int
     message_count: int
     ingested_at: str
+    document_type: str = "conversation"
 
 
 class JournalManager:

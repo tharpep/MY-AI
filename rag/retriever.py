@@ -53,16 +53,32 @@ class DocumentRetriever:
     def create_points(self, documents: List[str], dense_embeddings: List[List[float]],
                      sparse_embeddings: List[Dict[int, float]], start_doc_id: int = 0,
                      metadata: dict = None) -> List[PointStruct]:
-        """Create Qdrant points with both dense and sparse vectors."""
+        """Create Qdrant points with enriched metadata."""
+        from datetime import datetime, timezone
+        
         points = []
+        ingested_at = datetime.now(timezone.utc).isoformat()
+        
         for idx, (doc, dense, sparse) in enumerate(zip(documents, dense_embeddings, sparse_embeddings)):
             payload = {
                 "text": doc, 
                 "doc_id": start_doc_id + idx,
-                "chunk_id": idx
+                "chunk_id": idx,
+                "ingested_at": ingested_at
             }
+            
             if metadata:
-                payload.update(metadata)
+                if "document_type" in metadata:
+                    payload["document_type"] = metadata["document_type"]
+                if "tags" in metadata:
+                    payload["tags"] = metadata["tags"]
+                if "section_title" in metadata:
+                    payload["section_title"] = metadata["section_title"]
+                if "source_file" in metadata:
+                    payload["source_file"] = metadata["source_file"]
+                for k, v in metadata.items():
+                    if k not in payload:
+                        payload[k] = v
             
             indices = list(sparse.keys())
             values = list(sparse.values())

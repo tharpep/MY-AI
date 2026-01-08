@@ -224,7 +224,7 @@ PUT  /v1/config/prompts/system     → Update system prompt
 
 ---
 
-### Phase 6: Metadata Enrichment
+### Phase 6: Metadata Enrichment ✅ COMPLETE
 
 Add `document_type`, `ingested_at`, `tags`, and `section_title` to payloads.
 
