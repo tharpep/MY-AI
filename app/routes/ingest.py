@@ -281,3 +281,24 @@ async def ingest_url(body: IngestUrlRequest):
     except Exception as e:
         logger.error(f"URL ingest failed: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/kb/sources/{file_id}/content")
+async def get_source_content(file_id: str):
+    """Return a source's full original text plus metadata — backs full-document reads."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT file_id, filename, category, origin, raw_content "
+            "FROM kb_sources WHERE file_id = $1 AND status = 'active'",
+            file_id,
+        )
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Source not found: {file_id}")
+    return {
+        "file_id": row["file_id"],
+        "filename": row["filename"],
+        "category": row["category"],
+        "origin": row["origin"],
+        "content": row["raw_content"] or "",
+    }
