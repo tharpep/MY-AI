@@ -13,11 +13,12 @@ from pydantic import BaseModel
 from core.config import get_config
 from core.database import get_pool
 from llm.gateway import AIGateway
-from rag.chunking import chunk_text
+from rag.chunking import chunk_markdown, chunk_text
 from rag.embedder import embed_documents
 from rag.loader import _gateway_headers, _gateway_url
 from rag.sync import (
     _EMBED_BATCH,
+    _contextualize_chunk,
     _generate_summary,
     _upsert_file_chunks,
     _upsert_kb_source,
@@ -198,7 +199,20 @@ async def _ingest_text(file_id: str, filename: str, category: str | None, conten
 
     summary = await asyncio.to_thread(_generate_summary, content, gw)
 
-    chunks = chunk_text(content, chunk_size=config.kb_chunk_size, overlap=config.kb_chunk_overlap)
+    is_markdown = filename.lower().endswith((".md", ".markdown"))
+    if is_markdown:
+        raw_chunks = chunk_markdown(
+            content, chunk_size=config.kb_chunk_size, overlap=config.kb_chunk_overlap
+        )
+        chunks = [
+            _contextualize_chunk(chunk, filename, summary, section_title)
+            for chunk, section_title in raw_chunks
+        ]
+    else:
+        raw_chunks = chunk_text(
+            content, chunk_size=config.kb_chunk_size, overlap=config.kb_chunk_overlap
+        )
+        chunks = [_contextualize_chunk(chunk, filename, summary) for chunk in raw_chunks]
     if not chunks:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Content produced no chunks")
 
