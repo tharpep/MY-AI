@@ -51,13 +51,17 @@ async def _upsert_kb_source(
     modified_time: str,
     chunk_count: int,
     summary: str = "",
+    raw_content: str = "",
+    origin: str = "drive",
 ) -> None:
     """Insert or update a kb_sources record, setting last_synced to now."""
     modified_dt = datetime.fromisoformat(modified_time.replace("Z", "+00:00"))
     await conn.execute(
         """
-        INSERT INTO kb_sources (file_id, filename, category, modified_time, last_synced, chunk_count, summary, status)
-        VALUES ($1, $2, $3, $4, NOW(), $5, $6, 'active')
+        INSERT INTO kb_sources
+            (file_id, filename, category, modified_time, last_synced, chunk_count, summary,
+             status, raw_content, origin)
+        VALUES ($1, $2, $3, $4, NOW(), $5, $6, 'active', $7, $8)
         ON CONFLICT (file_id) DO UPDATE SET
             filename      = EXCLUDED.filename,
             category      = EXCLUDED.category,
@@ -65,7 +69,9 @@ async def _upsert_kb_source(
             last_synced   = NOW(),
             chunk_count   = EXCLUDED.chunk_count,
             summary       = EXCLUDED.summary,
-            status        = 'active'
+            status        = 'active',
+            raw_content   = EXCLUDED.raw_content,
+            origin        = EXCLUDED.origin
         """,
         file_id,
         filename,
@@ -73,6 +79,8 @@ async def _upsert_kb_source(
         modified_dt,
         chunk_count,
         summary,
+        raw_content,
+        origin,
     )
 
 
@@ -238,7 +246,15 @@ async def sync_drive(force: bool = False) -> dict:
             # Update kb_sources within its own connection (outside chunk transaction)
             async with pool.acquire() as conn:
                 await _upsert_kb_source(
-                    conn, file.id, file.name, file.category, file.modified_time, inserted, summary
+                    conn,
+                    file.id,
+                    file.name,
+                    file.category,
+                    file.modified_time,
+                    inserted,
+                    summary,
+                    raw_content=text,
+                    origin="drive",
                 )
 
             files_synced += 1

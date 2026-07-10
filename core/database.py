@@ -64,6 +64,8 @@ _MIGRATION_SQL = """
 ALTER TABLE kb_chunks ADD COLUMN IF NOT EXISTS source_category TEXT;
 ALTER TABLE kb_chunks DROP COLUMN IF EXISTS folder;
 ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS raw_content TEXT;
+ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS origin TEXT DEFAULT 'drive';
 """
 
 

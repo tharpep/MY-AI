@@ -1,12 +1,28 @@
-"""KB sync routes — Drive → kb_chunks sync management."""
+"""KB sync routes — Drive → kb_chunks sync management, plus direct (non-Drive) ingest."""
 
+import asyncio
+import hashlib
 import logging
+import uuid
+from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
+from core.config import get_config
 from core.database import get_pool
-from rag.sync import sync_drive
+from llm.gateway import AIGateway
+from rag.chunking import chunk_text
+from rag.embedder import embed_documents
+from rag.loader import _gateway_headers, _gateway_url
+from rag.sync import (
+    _EMBED_BATCH,
+    _generate_summary,
+    _upsert_file_chunks,
+    _upsert_kb_source,
+    sync_drive,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -145,3 +161,144 @@ async def delete_kb_file(drive_file_id: str):
     except Exception as e:
         logger.error(f"Failed to delete KB file {drive_file_id}: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+class IngestTextRequest(BaseModel):
+    title: str
+    content: str
+    category: str | None = None
+
+
+class IngestUrlRequest(BaseModel):
+    url: str
+    category: str | None = None
+
+
+class IngestResponse(BaseModel):
+    file_id: str
+    filename: str
+    category: str | None
+    origin: str
+    chunk_count: int
+    summary: str
+
+
+async def _ingest_text(file_id: str, filename: str, category: str | None, content: str, origin: str) -> IngestResponse:
+    """Shared pipeline for direct (non-Drive) ingest: summarize, chunk, embed, upsert.
+
+    Reuses the exact per-file upsert helpers the Drive sync path uses, so a
+    directly-ingested doc is indistinguishable downstream from a synced one
+    except for its `origin`.
+    """
+    config = get_config()
+    gw = AIGateway()
+
+    if not content.strip():
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No content to ingest")
+
+    summary = await asyncio.to_thread(_generate_summary, content, gw)
+
+    chunks = chunk_text(content, chunk_size=config.kb_chunk_size, overlap=config.kb_chunk_overlap)
+    if not chunks:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Content produced no chunks")
+
+    all_embeddings: list[list[float]] = []
+    for i in range(0, len(chunks), _EMBED_BATCH):
+        batch = chunks[i : i + _EMBED_BATCH]
+        all_embeddings.extend(await embed_documents(batch))
+
+    pool = get_pool()
+    inserted = await _upsert_file_chunks(
+        pool,
+        drive_file_id=file_id,
+        filename=filename,
+        source_category=category or "",
+        chunks=chunks,
+        embeddings=all_embeddings,
+    )
+
+    modified_time = datetime.now(timezone.utc).isoformat()
+    async with pool.acquire() as conn:
+        await _upsert_kb_source(
+            conn,
+            file_id,
+            filename,
+            category or "",
+            modified_time,
+            inserted,
+            summary,
+            raw_content=content,
+            origin=origin,
+        )
+
+    return IngestResponse(
+        file_id=file_id,
+        filename=filename,
+        category=category,
+        origin=origin,
+        chunk_count=inserted,
+        summary=summary,
+    )
+
+
+@router.post("/kb/ingest/text", response_model=IngestResponse, status_code=status.HTTP_201_CREATED)
+async def ingest_text(body: IngestTextRequest):
+    """Directly ingest arbitrary text content — no Drive file required."""
+    file_id = f"text:{uuid.uuid4()}"
+    try:
+        return await _ingest_text(file_id, body.title, body.category, body.content, origin="text")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Text ingest failed: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/kb/ingest/url", response_model=IngestResponse, status_code=status.HTTP_201_CREATED)
+async def ingest_url(body: IngestUrlRequest):
+    """Fetch a URL via the gateway's web-fetch (Tavily extract) and ingest its text."""
+    file_id = f"url:{hashlib.sha256(body.url.encode()).hexdigest()}"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            _gateway_url("search/web/fetch"),
+            json={"url": body.url},
+            headers=_gateway_headers(),
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"URL fetch failed: {resp.text}")
+
+    data = resp.json()
+    results = data.get("results") or []
+    if not results or not results[0].get("raw_content"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"No content extracted from {body.url}")
+    content = results[0]["raw_content"]
+
+    try:
+        return await _ingest_text(file_id, body.url, body.category, content, origin="url")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"URL ingest failed: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/kb/sources/{file_id}/content")
+async def get_source_content(file_id: str):
+    """Return a source's full original text plus metadata — backs full-document reads."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT file_id, filename, category, origin, raw_content "
+            "FROM kb_sources WHERE file_id = $1 AND status = 'active'",
+            file_id,
+        )
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Source not found: {file_id}")
+    return {
+        "file_id": row["file_id"],
+        "filename": row["filename"],
+        "category": row["category"],
+        "origin": row["origin"],
+        "content": row["raw_content"] or "",
+    }
