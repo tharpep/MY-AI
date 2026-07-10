@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS kb_chunks (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS kb_chunks_embedding_idx
-    ON kb_chunks USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS kb_chunks_embedding_hnsw_idx
+    ON kb_chunks USING hnsw (embedding vector_cosine_ops) WITH (m = 24, ef_construction = 100);
 
 CREATE INDEX IF NOT EXISTS kb_chunks_fts_idx
     ON kb_chunks USING gin (fts);
@@ -66,6 +66,7 @@ ALTER TABLE kb_chunks DROP COLUMN IF EXISTS folder;
 ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS summary TEXT;
 ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS raw_content TEXT;
 ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS origin TEXT DEFAULT 'drive';
+DROP INDEX IF EXISTS kb_chunks_embedding_idx;
 """
 
 

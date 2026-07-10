@@ -8,7 +8,7 @@ from typing import Optional
 from core.config import get_config
 from core.database import get_pool
 from llm.gateway import AIGateway
-from rag.chunking import chunk_text
+from rag.chunking import chunk_markdown, chunk_text
 from rag.embedder import embed_documents
 from rag.loader import DriveFileRecord, download_file, list_drive_files, parse_content
 
@@ -28,6 +28,24 @@ def _generate_summary(text: str, gw: AIGateway) -> str:
     except Exception as exc:
         logger.warning(f"Summary generation failed: {exc}")
         return _SUMMARY_UNAVAILABLE
+
+
+def _contextualize_chunk(chunk: str, filename: str, summary: str, section_title: str = "") -> str:
+    """Prepend a short doc-aware (and section-aware, if known) context blurb before embedding.
+
+    Implements Anthropic's Contextual Retrieval. The contextualized text is what
+    gets embedded AND stored in `content` — so the generated `fts` tsvector also
+    benefits — the deliberate tradeoff (per issue #102's "simplest first cut") is
+    that retrieved chunks show this prefix.
+    """
+    context_bits = [f"From '{filename}'"]
+    if summary and summary != _SUMMARY_UNAVAILABLE:
+        context_bits.append(f"({summary})")
+    if section_title:
+        context_bits.append(f"[{section_title}]")
+    prefix = " ".join(context_bits) + ": "
+    return prefix + chunk
+
 
 # Stay well under Voyage's 128-input / 320K-token per-request limit
 _EMBED_BATCH = 96
@@ -216,11 +234,20 @@ async def sync_drive(force: bool = False) -> dict:
             summary = await asyncio.to_thread(_generate_summary, text, gw)
             logger.debug(f"  summary '{file.name}': {summary[:80]!r}")
 
-            chunks = chunk_text(
-                text,
-                chunk_size=config.kb_chunk_size,
-                overlap=config.kb_chunk_overlap,
-            )
+            is_markdown = file.name.lower().endswith((".md", ".markdown"))
+            if is_markdown:
+                raw_chunks = chunk_markdown(
+                    text, chunk_size=config.kb_chunk_size, overlap=config.kb_chunk_overlap
+                )
+                chunks = [
+                    _contextualize_chunk(chunk, file.name, summary, section_title)
+                    for chunk, section_title in raw_chunks
+                ]
+            else:
+                raw_chunks = chunk_text(
+                    text, chunk_size=config.kb_chunk_size, overlap=config.kb_chunk_overlap
+                )
+                chunks = [_contextualize_chunk(chunk, file.name, summary) for chunk in raw_chunks]
             if not chunks:
                 continue
 
