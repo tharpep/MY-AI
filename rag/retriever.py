@@ -182,25 +182,33 @@ async def retrieve(
     logger.debug(f"  [1] embed_query: {time.perf_counter() - t0:.3f}s, dim={len(embedding)}")
 
     async with pool.acquire() as conn:
-        # 2. Dense search
-        t0 = time.perf_counter()
-        dense = await _dense_search(conn, embedding, candidates, categories)
-        logger.debug(
-            f"  [2] dense search: {len(dense)} candidates in {time.perf_counter() - t0:.3f}s"
-            + (f", top score={dense[0].dense_score:.4f}" if dense else "")
-        )
+        async with conn.transaction():
+            # SET LOCAL only takes effect for the duration of this transaction, so it
+            # never leaks the setting onto a pooled connection reused by another request.
+            # hnsw.ef_search doesn't accept a bind parameter — config.hnsw_ef_search is
+            # a pydantic-validated (ge=10, le=1000) int from our own settings, not user
+            # input, so inlining it is safe.
+            await conn.execute(f"SET LOCAL hnsw.ef_search = {config.hnsw_ef_search}")
 
-        # 3. FTS search (skipped when sparse_weight == 0 → dense-only mode)
-        sparse: list[Chunk] = []
-        if config.hybrid_sparse_weight > 0:
+            # 2. Dense search
             t0 = time.perf_counter()
-            sparse = await _fts_search(conn, query, candidates, categories)
+            dense = await _dense_search(conn, embedding, candidates, categories)
             logger.debug(
-                f"  [3] fts search: {len(sparse)} candidates in {time.perf_counter() - t0:.3f}s"
-                + (f", top score={sparse[0].fts_score:.4f}" if sparse else "")
+                f"  [2] dense search: {len(dense)} candidates in {time.perf_counter() - t0:.3f}s"
+                + (f", top score={dense[0].dense_score:.4f}" if dense else "")
             )
-        else:
-            logger.debug("  [3] fts search: skipped (sparse_weight=0)")
+
+            # 3. FTS search (skipped when sparse_weight == 0 → dense-only mode)
+            sparse: list[Chunk] = []
+            if config.hybrid_sparse_weight > 0:
+                t0 = time.perf_counter()
+                sparse = await _fts_search(conn, query, candidates, categories)
+                logger.debug(
+                    f"  [3] fts search: {len(sparse)} candidates in {time.perf_counter() - t0:.3f}s"
+                    + (f", top score={sparse[0].fts_score:.4f}" if sparse else "")
+                )
+            else:
+                logger.debug("  [3] fts search: skipped (sparse_weight=0)")
 
     # 4. RRF fusion (or pass-through if no sparse results)
     fused = _rrf_fuse(dense, sparse, candidates) if sparse else dense[:candidates]

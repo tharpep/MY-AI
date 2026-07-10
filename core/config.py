@@ -66,6 +66,12 @@ class AppConfig(BaseSettings):
         le=1.0,
         description="Weight for FTS in hybrid search (0=dense only, 1=FTS only)",
     )
+    hnsw_ef_search: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        description="pgvector HNSW query-time search width (higher = more accurate, slower)",
+    )
 
     # ===== Reranking =====
     rerank_enabled: bool = Field(
@@ -105,7 +111,7 @@ class AppConfig(BaseSettings):
         description="Maximum characters per chunk",
     )
     kb_chunk_overlap: int = Field(
-        default=100,
+        default=200,
         ge=0,
         le=500,
         description="Overlap characters between chunks",
@@ -121,13 +127,13 @@ class AppConfig(BaseSettings):
         description="Enable KB (document RAG) context in chat",
     )
     chat_kb_top_k: int = Field(
-        default=30,
+        default=8,
         ge=1,
         le=100,
-        description="Top-k chunks to retrieve from KB",
+        description="Top-k chunks to retrieve from KB (fallback role — full-document reads are primary)",
     )
     chat_kb_similarity_threshold: float = Field(
-        default=0.15,
+        default=0.3,
         ge=0.0,
         le=1.0,
         description="Minimum similarity score for KB context",
