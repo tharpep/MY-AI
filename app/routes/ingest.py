@@ -15,6 +15,7 @@ from core.database import get_pool
 from llm.gateway import AIGateway
 from rag.chunking import chunk_text
 from rag.embedder import embed_documents
+from rag.loader import _gateway_headers, _gateway_url
 from rag.sync import (
     _EMBED_BATCH,
     _generate_summary,
@@ -256,14 +257,13 @@ async def ingest_text(body: IngestTextRequest):
 @router.post("/kb/ingest/url", response_model=IngestResponse, status_code=status.HTTP_201_CREATED)
 async def ingest_url(body: IngestUrlRequest):
     """Fetch a URL via the gateway's web-fetch (Tavily extract) and ingest its text."""
-    config = get_config()
     file_id = f"url:{hashlib.sha256(body.url.encode()).hexdigest()}"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(
-            f"{config.api_gateway_url.rstrip('/')}/search/web/fetch",
+            _gateway_url("search/web/fetch"),
             json={"url": body.url},
-            headers={"X-API-Key": config.api_gateway_key},
+            headers=_gateway_headers(),
         )
     if resp.status_code != 200:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"URL fetch failed: {resp.text}")
