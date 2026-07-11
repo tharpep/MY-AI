@@ -116,6 +116,12 @@ class AppConfig(BaseSettings):
         le=500,
         description="Overlap characters between chunks",
     )
+    kb_sync_concurrency: int = Field(
+        default=4,
+        ge=1,
+        le=16,
+        description="Max files synced from Drive concurrently (download/summarize/embed/upsert per file)",
+    )
 
     # ===== Chat Context =====
     chat_context_enabled: bool = Field(

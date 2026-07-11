@@ -104,6 +104,7 @@ list_drive_files() → GET api-gateway/storage/files  (all subfolders, category 
 ```
 
 `sync_drive(force=False)` — smart incremental by default. `force=True` re-syncs everything.
+Files needing sync are processed concurrently, bounded by `kb_sync_concurrency` (default 4).
 KB subfolders: `general`, `projects`, `purdue`, `career`, `reference`.
 
 ### LLM Calls (`llm/gateway.py`)
