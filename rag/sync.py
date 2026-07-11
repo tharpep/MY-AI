@@ -173,53 +173,21 @@ def _needs_sync(file: DriveFileRecord, source: Optional[dict]) -> bool:
     return file_modified > last_synced
 
 
-async def sync_drive(force: bool = False) -> dict:
-    """Sync all KB Drive subfolders into kb_chunks, using kb_sources for change detection.
+async def _sync_one_file(
+    file: DriveFileRecord,
+    gw: AIGateway,
+    pool,
+    config,
+    semaphore: asyncio.Semaphore,
+) -> dict:
+    """Download, parse, summarize, chunk, embed, and upsert a single file.
 
-    Args:
-        force: If True, re-sync every file regardless of modification time.
-
-    Returns:
-        dict with keys: files_synced, files_skipped, files_deleted, chunks_inserted,
-                        errors, synced_at
+    Returns {"status": "synced", "chunks": N} | {"status": "empty"} | {"status": "error", "error": str}.
+    Bounded by `semaphore` so at most `kb_sync_concurrency` files are in flight at once —
+    Drive downloads, Haiku summaries, and Voyage embeddings all happen per-file, so
+    unbounded concurrency would hammer all three at once.
     """
-    config = get_config()
-    pool = get_pool()
-    gw = AIGateway()
-
-    # All files across all KB subfolders (category comes from each file's DriveFileRecord)
-    drive_files = await list_drive_files()
-    logger.info(f"Drive sync: {len(drive_files)} file(s) found across all KB subfolders")
-
-    # Existing kb_sources state for change detection and deletion tracking
-    existing_sources = await _get_all_kb_sources(pool)
-    drive_ids = {f.id for f in drive_files}
-
-    # Files that no longer exist in Drive but are still active in kb_sources
-    deleted_ids = [
-        fid
-        for fid, src in existing_sources.items()
-        if src.get("status") == "active" and fid not in drive_ids
-    ]
-
-    # Remove deleted files first
-    if deleted_ids:
-        await _remove_deleted_files(pool, deleted_ids)
-        logger.info(f"Removed {len(deleted_ids)} deleted file(s) from KB")
-
-    files_synced = 0
-    files_skipped = 0
-    chunks_inserted = 0
-    errors: list[str] = []
-
-    for file in drive_files:
-        source = existing_sources.get(file.id)
-
-        if not force and not _needs_sync(file, source):
-            files_skipped += 1
-            logger.debug(f"Skipping '{file.name}' — not modified since last sync")
-            continue
-
+    async with semaphore:
         try:
             data, content_type, _ = await download_file(file.id)
             logger.debug(f"  downloaded '{file.name}': {len(data):,} bytes, type={content_type}")
@@ -229,7 +197,7 @@ async def sync_drive(force: bool = False) -> dict:
 
             if not text.strip():
                 logger.warning(f"No text extracted from '{file.name}', skipping")
-                continue
+                return {"status": "empty"}
 
             summary = await asyncio.to_thread(_generate_summary, text, gw)
             logger.debug(f"  summary '{file.name}': {summary[:80]!r}")
@@ -249,7 +217,7 @@ async def sync_drive(force: bool = False) -> dict:
                 )
                 chunks = [_contextualize_chunk(chunk, file.name, summary) for chunk in raw_chunks]
             if not chunks:
-                continue
+                return {"status": "empty"}
 
             n_batches = (len(chunks) + _EMBED_BATCH - 1) // _EMBED_BATCH
             logger.debug(
@@ -284,13 +252,67 @@ async def sync_drive(force: bool = False) -> dict:
                     origin="drive",
                 )
 
-            files_synced += 1
-            chunks_inserted += inserted
             logger.info(f"Synced '{file.name}': {inserted} chunk(s)")
+            return {"status": "synced", "chunks": inserted}
 
         except Exception as e:
             logger.error(f"Error syncing '{file.name}': {e}")
-            errors.append(f"{file.name}: {e}")
+            return {"status": "error", "error": f"{file.name}: {e}"}
+
+
+async def sync_drive(force: bool = False) -> dict:
+    """Sync all KB Drive subfolders into kb_chunks, using kb_sources for change detection.
+
+    Files needing sync are processed concurrently (bounded by kb_sync_concurrency) rather
+    than one at a time — each file's download/summarize/embed/upsert pipeline is otherwise
+    independent, and sequential processing was the bottleneck on large Drive folders.
+
+    Args:
+        force: If True, re-sync every file regardless of modification time.
+
+    Returns:
+        dict with keys: files_synced, files_skipped, files_deleted, chunks_inserted,
+                        errors, synced_at
+    """
+    config = get_config()
+    pool = get_pool()
+    gw = AIGateway()
+
+    # All files across all KB subfolders (category comes from each file's DriveFileRecord)
+    drive_files = await list_drive_files()
+    logger.info(f"Drive sync: {len(drive_files)} file(s) found across all KB subfolders")
+
+    # Existing kb_sources state for change detection and deletion tracking
+    existing_sources = await _get_all_kb_sources(pool)
+    drive_ids = {f.id for f in drive_files}
+
+    # Files that no longer exist in Drive but are still active in kb_sources
+    deleted_ids = [
+        fid
+        for fid, src in existing_sources.items()
+        if src.get("status") == "active" and fid not in drive_ids
+    ]
+
+    # Remove deleted files first
+    if deleted_ids:
+        await _remove_deleted_files(pool, deleted_ids)
+        logger.info(f"Removed {len(deleted_ids)} deleted file(s) from KB")
+
+    files_to_sync = [
+        f for f in drive_files if force or _needs_sync(f, existing_sources.get(f.id))
+    ]
+    files_skipped = len(drive_files) - len(files_to_sync)
+    if files_skipped:
+        logger.debug(f"Skipping {files_skipped} file(s) — not modified since last sync")
+
+    semaphore = asyncio.Semaphore(config.kb_sync_concurrency)
+    results = await asyncio.gather(
+        *[_sync_one_file(f, gw, pool, config, semaphore) for f in files_to_sync]
+    )
+
+    files_synced = sum(1 for r in results if r["status"] == "synced")
+    chunks_inserted = sum(r.get("chunks", 0) for r in results if r["status"] == "synced")
+    errors = [r["error"] for r in results if r["status"] == "error"]
 
     return {
         "files_synced": files_synced,
