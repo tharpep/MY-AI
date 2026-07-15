@@ -67,6 +67,24 @@ ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS summary TEXT;
 ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS raw_content TEXT;
 ALTER TABLE kb_sources ADD COLUMN IF NOT EXISTS origin TEXT DEFAULT 'drive';
 DROP INDEX IF EXISTS kb_chunks_embedding_idx;
+
+-- De-duplicate any existing (drive_file_id, chunk_index) collisions — possible
+-- today because nothing prevented two overlapping sync_drive() calls (a manual
+-- /kb/sync racing a cron-triggered one) from both inserting for the same file —
+-- before adding the uniqueness constraint below. Keeps the most recently
+-- created row of each colliding pair; (created_at, id) breaks exact-timestamp
+-- ties deterministically.
+DELETE FROM kb_chunks a USING kb_chunks b
+WHERE a.drive_file_id IS NOT NULL
+  AND a.drive_file_id = b.drive_file_id
+  AND a.chunk_index = b.chunk_index
+  AND (a.created_at, a.id) < (b.created_at, b.id);
+
+-- Partial (not full) uniqueness: chunks from ingest_text/ingest_url leave
+-- drive_file_id NULL, and NULL <> NULL under UNIQUE anyway, but being
+-- explicit documents the intent — this only guards actual Drive-synced files.
+CREATE UNIQUE INDEX IF NOT EXISTS kb_chunks_drive_file_chunk_idx
+    ON kb_chunks (drive_file_id, chunk_index) WHERE drive_file_id IS NOT NULL;
 """
 
 
