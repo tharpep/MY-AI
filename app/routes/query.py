@@ -98,7 +98,7 @@ async def search_kb(body: KBSearchRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"KB search failed: {e}")
+        logger.exception("KB search failed")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -140,7 +140,7 @@ async def kb_index():
         ]
         return KBIndexResponse(index=entries, count=len(entries))
     except Exception as e:
-        logger.error(f"Failed to get KB index: {e}")
+        logger.exception("Failed to get KB index")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -162,5 +162,5 @@ async def kb_stats():
             "file_count": row["file_count"],
         }
     except Exception as e:
-        logger.error(f"Failed to get KB stats: {e}")
+        logger.exception("Failed to get KB stats")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

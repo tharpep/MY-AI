@@ -78,7 +78,7 @@ async def get_config() -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        logger.error(f"Failed to get config: {e}")
+        logger.exception("Failed to get config")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -107,5 +107,5 @@ async def update_config(request: ConfigUpdateRequest) -> Dict[str, Any]:
             "message": f"Updated {len(updated)} field(s). Restart to persist via .env.",
         }
     except Exception as e:
-        logger.error(f"Failed to update config: {e}")
+        logger.exception("Failed to update config")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

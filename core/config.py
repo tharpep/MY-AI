@@ -155,6 +155,16 @@ class AppConfig(BaseSettings):
         description="Enable DEBUG-level logging for full pipeline visibility (embed timing, retrieval scores, sync steps)",
     )
 
+    # ===== Observability =====
+    sentry_dsn: str = Field(
+        default="",
+        description="Sentry DSN for error tracking. Empty = fully disabled, no-op.",
+    )
+    sentry_traces_sample_rate: float = Field(
+        default=0.1,
+        description="Fraction of requests to sample for Sentry performance tracing.",
+    )
+
     # ===== Ollama (local dev only — never deployed) =====
     ollama_base_url: str = Field(
         default="http://localhost:11434",
