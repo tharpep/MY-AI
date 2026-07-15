@@ -30,6 +30,7 @@ pypdf2 = ">=3.0.0"
 python-docx = ">=1.1.0"
 openpyxl = ">=3.1.0"
 langchain-text-splitters = {version = ">=1.1.0", python = ">=3.11,<4.0"}
+sentry-sdk = {extras = ["fastapi"], version = "^2.65.0"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0"

@@ -96,7 +96,7 @@ async def chat_completions(request: ChatCompletionRequest) -> Dict[str, Any]:
         response_text = await asyncio.to_thread(gateway.chat, messages=messages, model=request.model)
         logger.debug(f"chat: gateway response in {time.time() - t0:.3f}s, {len(response_text)} chars")
     except Exception as e:
-        logger.error(f"Gateway call failed: {e}")
+        logger.exception("Gateway call failed")
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"Gateway error: {e}")
 
     # Token estimation (word count × 1.3)

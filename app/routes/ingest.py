@@ -55,7 +55,7 @@ async def run_sync(
         result = await sync_drive(force=force)  # category comes from each file's Drive folder
         return SyncResponse(**result)
     except Exception as e:
-        logger.error(f"KB sync failed: {e}")
+        logger.exception("KB sync failed")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -89,7 +89,7 @@ async def list_kb_sources():
             "count": len(rows),
         }
     except Exception as e:
-        logger.error(f"Failed to list KB sources: {e}")
+        logger.exception("Failed to list KB sources")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -120,7 +120,7 @@ async def list_kb_files():
             "count": len(rows),
         }
     except Exception as e:
-        logger.error(f"Failed to list KB files: {e}")
+        logger.exception("Failed to list KB files")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -133,7 +133,7 @@ async def clear_kb():
             await conn.execute("TRUNCATE TABLE kb_chunks")
             await conn.execute("TRUNCATE TABLE kb_sources")
     except Exception as e:
-        logger.error(f"Failed to clear KB: {e}")
+        logger.exception("Failed to clear KB")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -160,7 +160,7 @@ async def delete_kb_file(drive_file_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete KB file {drive_file_id}: {e}")
+        logger.exception(f"Failed to delete KB file {drive_file_id}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -264,7 +264,7 @@ async def ingest_text(body: IngestTextRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Text ingest failed: {e}")
+        logger.exception("Text ingest failed")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -293,7 +293,7 @@ async def ingest_url(body: IngestUrlRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"URL ingest failed: {e}")
+        logger.exception("URL ingest failed")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 

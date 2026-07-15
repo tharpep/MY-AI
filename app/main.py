@@ -3,8 +3,11 @@
 import logging
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from core.config import get_config
 from core.database import close_pool, init_pool
@@ -25,6 +28,25 @@ def _configure_logging() -> None:
     if config.debug:
         logger.debug("DEBUG logging enabled — full pipeline output active")
 
+
+def _configure_sentry() -> None:
+    """No-op unless SENTRY_DSN is set — nothing to configure until a Sentry
+    project exists. logger.error/exception calls are captured automatically
+    via the logging integration once it is."""
+    config = get_config()
+    if not config.sentry_dsn:
+        return
+    sentry_sdk.init(
+        dsn=config.sentry_dsn,
+        integrations=[
+            FastApiIntegration(),
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+        ],
+        traces_sample_rate=config.sentry_traces_sample_rate,
+        send_default_pii=False,
+    )
+    logger.info("Sentry error tracking enabled")
+
 gateway: AIGateway = None
 
 
@@ -34,13 +56,15 @@ async def lifespan(app: FastAPI):
     global gateway
 
     _configure_logging()
+    _configure_sentry()
     logger.info("Starting KB Service API")
 
-    # PostgreSQL pool + schema
-    try:
-        await init_pool()
-    except Exception as e:
-        logger.error(f"Failed to initialize database pool: {e}")
+    # PostgreSQL pool + schema. init_pool() itself no-ops gracefully when
+    # DATABASE_URL isn't set (local dev) — a real failure here (bad DSN,
+    # unreachable Postgres, broken schema SQL) must crash startup instead of
+    # deploying a revision that looks healthy but 500s on every DB-touching
+    # request, since get_pool() raises once _pool is never set.
+    await init_pool()
 
     # AI Gateway
     gateway = AIGateway()
