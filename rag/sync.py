@@ -1,6 +1,7 @@
 """KB sync engine — Drive → kb_chunks with kb_sources change tracking."""
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -102,6 +103,33 @@ async def _upsert_kb_source(
     )
 
 
+async def _mark_source_error(pool, file: DriveFileRecord) -> None:
+    """Record that a sync attempt for this file failed.
+
+    Without this, a file that starts failing (corrupt re-upload, parse
+    exception, etc.) after having synced successfully once keeps whatever
+    status it last had — 'active' — forever, so it looks healthy in
+    GET /kb/sources while silently retrying and failing on every sync. Creates
+    a minimal row (status='error') for a file that has never synced at all,
+    or flips an existing row's status without touching its other columns.
+    """
+    modified_dt = datetime.fromisoformat(file.modified_time.replace("Z", "+00:00"))
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO kb_sources (file_id, filename, category, modified_time, last_synced, status, origin)
+            VALUES ($1, $2, $3, $4, NOW(), 'error', 'drive')
+            ON CONFLICT (file_id) DO UPDATE SET
+                status      = 'error',
+                last_synced = NOW()
+            """,
+            file.id,
+            file.name,
+            file.category,
+            modified_dt,
+        )
+
+
 async def _upsert_file_chunks(
     pool,
     drive_file_id: str,
@@ -109,6 +137,7 @@ async def _upsert_file_chunks(
     source_category: str,
     chunks: list[str],
     embeddings: list[list[float]],
+    section_titles: list[str] | None = None,
 ) -> int:
     """Delete existing chunks for this file and insert new ones atomically.
 
@@ -124,8 +153,8 @@ async def _upsert_file_chunks(
             await conn.executemany(
                 """
                 INSERT INTO kb_chunks
-                    (content, embedding, source_category, drive_file_id, filename, chunk_index)
-                VALUES ($1, $2::vector, $3, $4, $5, $6)
+                    (content, embedding, source_category, drive_file_id, filename, chunk_index, metadata)
+                VALUES ($1, $2::vector, $3, $4, $5, $6, $7::jsonb)
                 """,
                 [
                     (
@@ -135,6 +164,11 @@ async def _upsert_file_chunks(
                         drive_file_id,
                         filename,
                         idx,
+                        json.dumps(
+                            {"section_title": section_titles[idx]}
+                            if section_titles and section_titles[idx]
+                            else {}
+                        ),
                     )
                     for idx, (chunk, emb) in enumerate(zip(chunks, embeddings))
                 ],
@@ -203,6 +237,7 @@ async def _sync_one_file(
             logger.debug(f"  summary '{file.name}': {summary[:80]!r}")
 
             is_markdown = file.name.lower().endswith((".md", ".markdown"))
+            section_titles: list[str] | None = None
             if is_markdown:
                 raw_chunks = chunk_markdown(
                     text, chunk_size=config.kb_chunk_size, overlap=config.kb_chunk_overlap
@@ -211,6 +246,9 @@ async def _sync_one_file(
                     _contextualize_chunk(chunk, file.name, summary, section_title)
                     for chunk, section_title in raw_chunks
                 ]
+                # Stored in kb_chunks.metadata so a caller can cite "section X" instead
+                # of only ever pointing at the whole document.
+                section_titles = [section_title for _, section_title in raw_chunks]
             else:
                 raw_chunks = chunk_text(
                     text, chunk_size=config.kb_chunk_size, overlap=config.kb_chunk_overlap
@@ -236,6 +274,7 @@ async def _sync_one_file(
                 source_category=file.category,
                 chunks=chunks,
                 embeddings=all_embeddings,
+                section_titles=section_titles,
             )
 
             # Update kb_sources within its own connection (outside chunk transaction)
@@ -256,12 +295,58 @@ async def _sync_one_file(
             return {"status": "synced", "chunks": inserted}
 
         except Exception as e:
-            logger.error(f"Error syncing '{file.name}': {e}")
-            return {"status": "error", "error": f"{file.name}: {e}"}
+            logger.exception(f"Error syncing '{file.name}'")
+            error_msg = f"{file.name}: {e}"
+            try:
+                await _mark_source_error(pool, file)
+            except Exception:
+                # Don't let a failure to record the failure mask the original error.
+                logger.exception(f"Failed to mark kb_sources status=error for '{file.name}'")
+            return {"status": "error", "error": error_msg}
+
+
+# Arbitrary constant identifying this app's sync lock in Postgres's advisory-lock
+# keyspace (a 64-bit int shared cluster-wide) — has no meaning beyond being a
+# fixed, unique key both callers agree on.
+_SYNC_ADVISORY_LOCK_KEY = 837462910
 
 
 async def sync_drive(force: bool = False) -> dict:
-    """Sync all KB Drive subfolders into kb_chunks, using kb_sources for change detection.
+    """Sync all KB Drive subfolders, serialized by a Postgres advisory lock.
+
+    A manual POST /kb/sync racing a cron-triggered sync (or two manual
+    triggers) previously ran two full sync passes concurrently — with nothing
+    stopping their DELETE+INSERT transactions on the same file from
+    interleaving, that could duplicate a file's chunks. The lock is held on
+    one dedicated connection for the whole sync; a caller that can't acquire
+    it returns immediately instead of doing redundant work.
+    """
+    pool = get_pool()
+    conn = await pool.acquire()
+    try:
+        acquired = await conn.fetchval(
+            "SELECT pg_try_advisory_lock($1)", _SYNC_ADVISORY_LOCK_KEY
+        )
+        if not acquired:
+            logger.warning("sync_drive() skipped — another sync is already in progress")
+            return {
+                "files_synced": 0,
+                "files_skipped": 0,
+                "files_deleted": 0,
+                "chunks_inserted": 0,
+                "errors": ["Sync already in progress — skipped."],
+                "synced_at": datetime.now(timezone.utc).isoformat(),
+            }
+        return await _sync_drive_locked(force)
+    finally:
+        try:
+            await conn.execute("SELECT pg_advisory_unlock($1)", _SYNC_ADVISORY_LOCK_KEY)
+        finally:
+            await pool.release(conn)
+
+
+async def _sync_drive_locked(force: bool = False) -> dict:
+    """The actual sync pass — only ever called while sync_drive() holds the lock.
 
     Files needing sync are processed concurrently (bounded by kb_sync_concurrency) rather
     than one at a time — each file's download/summarize/embed/upsert pipeline is otherwise
